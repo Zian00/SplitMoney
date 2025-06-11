@@ -103,3 +103,8 @@ class ExpenseShare(SQLModel, table=True):
 
     expense: Expense = Relationship(back_populates="shares")
     user: User = Relationship(back_populates="expense_shares")
+
+
+class UserCreate(SQLModel):
+    email: str
+    password: str

@@ -27,15 +27,25 @@ const AuthForm = () => {
 					email,
 					password,
 				});
+				
+				// console.log('Login response:', response.data); // Debug line
+				// console.log('Full response:', response);
+				// console.log('Response data:', response.data);
+				// console.log('User data:', response.data.user);
+				
 				setAuth({
-					user: response.data.user,
-					token: response.data.access_token,
+					user: response.data.user, // This should work now
+					token: null,
 				});
 			} else {
 				await apiClient.post('/auth/register', { email, password });
-				setMessage('Verification email sent. Please check your inbox.');
+				setMessage('Registration successful! Please log in.');
+				setMode('login');
+				setEmail('');
+				setPassword('');
 			}
 		} catch (err) {
+			console.error('Auth error:', err);
 			setError(err.response?.data?.detail || 'Something went wrong');
 		}
 	};
