@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
+from sqlmodel import Session, select, delete
 from typing import List
 from app.database import get_session
 from app.models import Expense, ExpensePayer, ExpenseShare, Group, User
@@ -86,6 +86,32 @@ async def update_expense(expense_id: int, expense_data: dict, session: Session =
     if "total_amount" in expense_data:
         expense.total_amount = expense_data["total_amount"]
     
+    # Update payers (delete existing and add new)
+    existing_payers = session.exec(select(ExpensePayer).where(ExpensePayer.expense_id == expense_id)).all()
+    for payer in existing_payers:
+        session.delete(payer)
+    
+    for payer_data in expense_data.get("payers", []):
+        payer = ExpensePayer(
+            expense_id=expense_id,
+            user_id=payer_data["user_id"],
+            paid_amount=payer_data["paid_amount"]
+        )
+        session.add(payer)
+    
+    # Update shares (delete existing and add new)
+    existing_shares = session.exec(select(ExpenseShare).where(ExpenseShare.expense_id == expense_id)).all()
+    for share in existing_shares:
+        session.delete(share)
+    
+    for share_data in expense_data.get("shares", []):
+        share = ExpenseShare(
+            expense_id=expense_id,
+            user_id=share_data["user_id"],
+            share_amount=share_data["share_amount"]
+        )
+        session.add(share)
+    
     session.add(expense)
     session.commit()
     session.refresh(expense)
@@ -98,6 +124,11 @@ async def delete_expense(expense_id: int, session: Session = Depends(get_session
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
     
+    # Delete related payers and shares first
+    session.exec(delete(ExpensePayer).where(ExpensePayer.expense_id == expense_id))
+    session.exec(delete(ExpenseShare).where(ExpenseShare.expense_id == expense_id))
+    
+    # Delete the expense
     session.delete(expense)
     session.commit()
     
@@ -111,12 +142,10 @@ async def get_expense_details(expense_id: int, session: Session = Depends(get_se
         raise HTTPException(status_code=404, detail="Expense not found")
     
     # Get payers
-    payers_statement = select(ExpensePayer).where(ExpensePayer.expense_id == expense_id)
-    payers = session.exec(payers_statement).all()
+    payers = session.exec(select(ExpensePayer).where(ExpensePayer.expense_id == expense_id)).all()
     
     # Get shares
-    shares_statement = select(ExpenseShare).where(ExpenseShare.expense_id == expense_id)
-    shares = session.exec(shares_statement).all()
+    shares = session.exec(select(ExpenseShare).where(ExpenseShare.expense_id == expense_id)).all()
     
     return {
         "expense": expense,
