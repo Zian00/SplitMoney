@@ -23,7 +23,6 @@ class User(SQLModel, table=True):
     # Expenses where this user owes money.
     expense_shares: List["ExpenseShare"] = Relationship(back_populates="user")
 
-
 class Group(SQLModel, table=True):
     __tablename__ = "groups"
 
