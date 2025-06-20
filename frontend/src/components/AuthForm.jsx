@@ -23,19 +23,21 @@ const AuthForm = () => {
 
 		try {
 			if (mode === 'login') {
-				const response = await apiClient.post('/auth/login', {
-					email,
-					password,
+				// Use form data for OAuth2PasswordRequestForm
+				const params = new URLSearchParams();
+				params.append('username', email);
+				params.append('password', password);
+
+				const response = await apiClient.post('/auth/token', params, {
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 				});
-				
-				// console.log('Login response:', response.data); // Debug line
-				// console.log('Full response:', response);
-				// console.log('Response data:', response.data);
-				// console.log('User data:', response.data.user);
-				
+
+				// Optionally, fetch user info after login
+				// When a user logs in, you get a JWT (access_token) from the backend.
+				const userResp = await apiClient.get(`/auth/users/${parseJwt(response.data.access_token).sub}`);
 				setAuth({
-					user: response.data.user, // This should work now
-					token: null,
+					user: userResp.data,
+					token: response.data.access_token,
 				});
 			} else {
 				await apiClient.post('/auth/register', { email, password });
@@ -49,6 +51,15 @@ const AuthForm = () => {
 			setError(err.response?.data?.detail || 'Something went wrong');
 		}
 	};
+
+	// Helper to decode JWT payload
+	function parseJwt(token) {
+		try {
+			return JSON.parse(atob(token.split('.')[1]));
+		} catch (e) {
+			return {};
+		}
+	}
 
 	return (
 		<div className="flex items-center justify-center h-screen bg-gray-100">

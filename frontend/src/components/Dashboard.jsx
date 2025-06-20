@@ -27,11 +27,11 @@ const Dashboard = () => {
 
 	const fetchUserGroups = async () => {
 		try {
-			console.log('Fetching groups for user:', user.id);
+			// console.log('Fetching groups for user:', user);
 			const response = await apiClient.get(
 				`/api/users/${user.id}/groups`
 			);
-			console.log('Groups response:', response.data);
+			// console.log('Groups response:', response.data);
 			setGroups(response.data);
 		} catch (err) {
 			console.error('Error fetching groups:', err);
@@ -61,7 +61,7 @@ const Dashboard = () => {
 		<div className='container mx-auto px-4 py-8'>
 			<div className='mb-8'>
 				<h1 className='text-3xl font-bold text-gray-800'>
-					Welcome back, {user.email}!
+					Welcome back, {user.name}!
 				</h1>
 				<p className='text-gray-600 mt-2'>
 					Manage your expense groups and track shared expenses.

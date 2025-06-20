@@ -30,6 +30,10 @@ const GroupDetails = () => {
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [expenseToDelete, setExpenseToDelete] = useState(null);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [editGroupMode, setEditGroupMode] = useState(false);
+	const [newGroupName, setNewGroupName] = useState('');
+
+	const isCreator = auth?.user?.id === group?.created_by;
 
 	useEffect(() => {
 		fetchGroupDetails();
@@ -155,21 +159,35 @@ const GroupDetails = () => {
 	};
 
 	const validateExpense = () => {
-		const totalPaid = newExpense.payers.reduce((sum, payer) => sum + parseFloat(payer.paid_amount || 0), 0);
-		const totalShares = newExpense.shares.reduce((sum, share) => sum + parseFloat(share.share_amount || 0), 0);
+		const totalPaid = newExpense.payers.reduce(
+			(sum, payer) => sum + parseFloat(payer.paid_amount || 0),
+			0
+		);
+		const totalShares = newExpense.shares.reduce(
+			(sum, share) => sum + parseFloat(share.share_amount || 0),
+			0
+		);
 		const totalAmount = parseFloat(newExpense.total_amount || 0);
 
 		const errors = [];
 
 		// Use a smaller tolerance for precision issues
 		const tolerance = 0.001; // 0.1 cents tolerance
-		
+
 		if (Math.abs(totalPaid - totalAmount) > tolerance) {
-			errors.push(`Total paid ($${totalPaid.toFixed(2)}) must equal total amount ($${totalAmount.toFixed(2)})`);
+			errors.push(
+				`Total paid ($${totalPaid.toFixed(
+					2
+				)}) must equal total amount ($${totalAmount.toFixed(2)})`
+			);
 		}
 
 		if (Math.abs(totalShares - totalAmount) > tolerance) {
-			errors.push(`Total shares ($${totalShares.toFixed(2)}) must equal total amount ($${totalAmount.toFixed(2)})`);
+			errors.push(
+				`Total shares ($${totalShares.toFixed(
+					2
+				)}) must equal total amount ($${totalAmount.toFixed(2)})`
+			);
 		}
 
 		return errors;
@@ -235,21 +253,21 @@ const GroupDetails = () => {
 	const calculateEqualShares = (totalAmount, memberCount) => {
 		const baseShare = totalAmount / memberCount;
 		const shares = [];
-		
+
 		// Calculate initial shares (all rounded down)
 		for (let i = 0; i < memberCount; i++) {
 			shares.push(Math.floor(baseShare * 100) / 100);
 		}
-		
+
 		// Calculate total rounded down
 		const totalRounded = shares.reduce((sum, share) => sum + share, 0);
 		const remainder = Math.round((totalAmount - totalRounded) * 100); // Convert to cents
-		
+
 		// Distribute the remainder (in cents) one by one
 		for (let i = 0; i < remainder; i++) {
 			shares[i] = Math.round((shares[i] + 0.01) * 100) / 100;
 		}
-		
+
 		return shares;
 	};
 
@@ -260,47 +278,60 @@ const GroupDetails = () => {
 		const totalAmount = parseFloat(newExpense.total_amount || 0);
 		if (totalAmount <= 0) return;
 
-		const validPayers = newExpense.payers.filter(payer => payer.user_id && payer.paid_amount);
+		const validPayers = newExpense.payers.filter(
+			(payer) => payer.user_id && payer.paid_amount
+		);
 		if (validPayers.length === 0) return;
 
 		let newShares = [];
 
 		if (splitMode === 'equal') {
 			// Use the precision-safe equal split
-			const equalShares = calculateEqualShares(totalAmount, groupMembers.length);
-			
+			const equalShares = calculateEqualShares(
+				totalAmount,
+				groupMembers.length
+			);
+
 			newShares = groupMembers.map((member, index) => ({
 				user_id: member.id,
-				share_amount: equalShares[index].toFixed(2)
+				share_amount: equalShares[index].toFixed(2),
 			}));
 		} else if (splitMode === 'percentage') {
 			// Proportional split based on who paid
-			const totalPaid = validPayers.reduce((sum, payer) => sum + parseFloat(payer.paid_amount), 0);
-			
+			const totalPaid = validPayers.reduce(
+				(sum, payer) => sum + parseFloat(payer.paid_amount),
+				0
+			);
+
 			// Calculate proportional shares with precision handling
-			const proportionalShares = validPayers.map(payer => {
+			const proportionalShares = validPayers.map((payer) => {
 				const percentage = parseFloat(payer.paid_amount) / totalPaid;
 				const share = totalAmount * percentage;
 				return Math.round(share * 100) / 100; // Round to 2 decimal places
 			});
-			
+
 			// Handle any remaining precision issues
-			const totalCalculated = proportionalShares.reduce((sum, share) => sum + share, 0);
+			const totalCalculated = proportionalShares.reduce(
+				(sum, share) => sum + share,
+				0
+			);
 			const difference = totalAmount - totalCalculated;
-			
+
 			if (Math.abs(difference) > 0.001) {
-				proportionalShares[0] = Math.round((proportionalShares[0] + difference) * 100) / 100;
+				proportionalShares[0] =
+					Math.round((proportionalShares[0] + difference) * 100) /
+					100;
 			}
-			
+
 			newShares = validPayers.map((payer, index) => ({
 				user_id: payer.user_id,
-				share_amount: proportionalShares[index].toFixed(2)
+				share_amount: proportionalShares[index].toFixed(2),
 			}));
 		}
 
 		setNewExpense({
 			...newExpense,
-			shares: newShares
+			shares: newShares,
 		});
 	};
 
@@ -308,30 +339,47 @@ const GroupDetails = () => {
 		if (autoCalculateShares) {
 			calculateSharesFromPayers();
 		}
-	}, [newExpense.payers, newExpense.total_amount, splitMode, autoCalculateShares]);
+	}, [
+		newExpense.payers,
+		newExpense.total_amount,
+		splitMode,
+		autoCalculateShares,
+	]);
 
 	const calculateRemainingAmount = () => {
 		const totalAmount = parseFloat(newExpense.total_amount || 0);
-		const totalPaid = newExpense.payers.reduce((sum, payer) => sum + parseFloat(payer.paid_amount || 0), 0);
-		const totalShares = newExpense.shares.reduce((sum, share) => sum + parseFloat(share.share_amount || 0), 0);
-		
+		const totalPaid = newExpense.payers.reduce(
+			(sum, payer) => sum + parseFloat(payer.paid_amount || 0),
+			0
+		);
+		const totalShares = newExpense.shares.reduce(
+			(sum, share) => sum + parseFloat(share.share_amount || 0),
+			0
+		);
+
 		return {
 			totalAmount,
 			totalPaid,
 			totalShares,
 			remainingPaid: totalAmount - totalPaid,
-			remainingShares: totalAmount - totalShares
+			remainingShares: totalAmount - totalShares,
 		};
 	};
 
 	const autoBalanceShares = () => {
 		const totalAmount = parseFloat(newExpense.total_amount || 0);
-		const currentTotal = newExpense.shares.reduce((sum, share) => sum + parseFloat(share.share_amount || 0), 0);
+		const currentTotal = newExpense.shares.reduce(
+			(sum, share) => sum + parseFloat(share.share_amount || 0),
+			0
+		);
 		const remaining = totalAmount - currentTotal;
-		
+
 		if (remaining > 0) {
 			// Add remaining amount to the first share with 0 amount
-			const firstEmptyShare = newExpense.shares.find(share => !share.share_amount || parseFloat(share.share_amount) === 0);
+			const firstEmptyShare = newExpense.shares.find(
+				(share) =>
+					!share.share_amount || parseFloat(share.share_amount) === 0
+			);
 			if (firstEmptyShare) {
 				const shareIndex = newExpense.shares.indexOf(firstEmptyShare);
 				updateShare(shareIndex, 'share_amount', remaining.toFixed(2));
@@ -342,20 +390,24 @@ const GroupDetails = () => {
 	// Replace the existing getAvailableUsers function with this:
 	const getAvailableUsersForPayer = (currentIndex) => {
 		const selectedUserIds = newExpense.payers
-			.map((payer, i) => i !== currentIndex ? payer.user_id : null)
-			.filter(id => id && id !== '')
-			.map(id => String(id)); // Convert to string for consistent comparison
-		
-		return groupMembers.filter(member => !selectedUserIds.includes(String(member.id)));
+			.map((payer, i) => (i !== currentIndex ? payer.user_id : null))
+			.filter((id) => id && id !== '')
+			.map((id) => String(id)); // Convert to string for consistent comparison
+
+		return groupMembers.filter(
+			(member) => !selectedUserIds.includes(String(member.id))
+		);
 	};
 
 	const getAvailableUsersForShare = (currentIndex) => {
 		const selectedUserIds = newExpense.shares
-			.map((share, i) => i !== currentIndex ? share.user_id : null)
-			.filter(id => id && id !== '')
-			.map(id => String(id)); // Convert to string for consistent comparison
-		
-		return groupMembers.filter(member => !selectedUserIds.includes(String(member.id)));
+			.map((share, i) => (i !== currentIndex ? share.user_id : null))
+			.filter((id) => id && id !== '')
+			.map((id) => String(id)); // Convert to string for consistent comparison
+
+		return groupMembers.filter(
+			(member) => !selectedUserIds.includes(String(member.id))
+		);
 	};
 
 	// Add this function to reset the form
@@ -364,7 +416,7 @@ const GroupDetails = () => {
 			description: '',
 			total_amount: '',
 			payers: [{ user_id: auth?.user?.id || '', paid_amount: '' }],
-			shares: [{ user_id: auth?.user?.id || '', share_amount: '' }]
+			shares: [{ user_id: auth?.user?.id || '', share_amount: '' }],
 		});
 		setSplitMode('equal');
 		setAutoCalculateShares(true);
@@ -391,21 +443,23 @@ const GroupDetails = () => {
 
 	const handleEditExpense = async (expenseId) => {
 		try {
-			const response = await apiClient.get(`/api/expenses/${expenseId}/details`);
+			const response = await apiClient.get(
+				`/api/expenses/${expenseId}/details`
+			);
 			const expenseData = response.data;
-			
+
 			setEditingExpense({
 				id: expenseData.expense.id,
 				description: expenseData.expense.description,
 				total_amount: expenseData.expense.total_amount.toString(),
-				payers: expenseData.payers.map(payer => ({
+				payers: expenseData.payers.map((payer) => ({
 					user_id: payer.user_id.toString(),
-					paid_amount: payer.paid_amount.toString()
+					paid_amount: payer.paid_amount.toString(),
 				})),
-				shares: expenseData.shares.map(share => ({
+				shares: expenseData.shares.map((share) => ({
 					user_id: share.user_id.toString(),
-					share_amount: share.share_amount.toString()
-				}))
+					share_amount: share.share_amount.toString(),
+				})),
 			});
 			setShowEditExpense(true);
 		} catch (err) {
@@ -416,7 +470,7 @@ const GroupDetails = () => {
 
 	const handleUpdateExpense = async (e) => {
 		e.preventDefault();
-		
+
 		const validationErrors = validateExpense();
 		if (validationErrors.length > 0) {
 			setError(validationErrors.join('. '));
@@ -427,17 +481,20 @@ const GroupDetails = () => {
 			const expenseData = {
 				description: editingExpense.description,
 				total_amount: parseFloat(editingExpense.total_amount),
-				payers: editingExpense.payers.map(p => ({
+				payers: editingExpense.payers.map((p) => ({
 					user_id: parseInt(p.user_id),
-					paid_amount: parseFloat(p.paid_amount)
+					paid_amount: parseFloat(p.paid_amount),
 				})),
-				shares: editingExpense.shares.map(s => ({
+				shares: editingExpense.shares.map((s) => ({
 					user_id: parseInt(s.user_id),
-					share_amount: parseFloat(s.share_amount)
-				}))
+					share_amount: parseFloat(s.share_amount),
+				})),
 			};
 
-			await apiClient.put(`/api/expenses/${editingExpense.id}`, expenseData);
+			await apiClient.put(
+				`/api/expenses/${editingExpense.id}`,
+				expenseData
+			);
 			setShowEditExpense(false);
 			setEditingExpense(null);
 			setError('');
@@ -470,6 +527,39 @@ const GroupDetails = () => {
 		}
 	};
 
+	const handleEditGroup = () => {
+		setEditGroupMode(true);
+		setNewGroupName(group.name);
+	};
+
+	const handleEditGroupSubmit = async (e) => {
+		e.preventDefault();
+		try {
+			await apiClient.put(`/api/groups/${groupId}`, {
+				name: newGroupName,
+			});
+			setEditGroupMode(false);
+			setSuccess('Group name updated!');
+			fetchGroupDetails();
+		} catch (err) {
+			setError('Failed to update group name');
+		}
+	};
+
+	const handleDeleteGroup = async () => {
+		if (!window.confirm('Are you sure you want to delete this group?'))
+			return;
+		setIsDeleting(true);
+		try {
+			await apiClient.delete(`/api/groups/${groupId}`);
+			navigate('/groups');
+		} catch (err) {
+			setError('Failed to delete group');
+		} finally {
+			setIsDeleting(false);
+		}
+	};
+
 	if (loading) {
 		return (
 			<div className='flex items-center justify-center h-screen'>
@@ -491,7 +581,6 @@ const GroupDetails = () => {
 	}
 
 	const { totalPaid, totalShares, totalAmount } = calculateTotals();
-	const isCreator = group.created_by === auth?.user?.id;
 
 	return (
 		<div className='container mx-auto px-4 py-8'>
@@ -545,27 +634,55 @@ const GroupDetails = () => {
 											).toLocaleDateString()}
 										</p>
 									</div>
-									<div className="flex items-center space-x-2">
+									<div className='flex items-center space-x-2'>
 										<span className='text-lg font-semibold text-green-600'>
 											${expense.total_amount}
 										</span>
-										<div className="flex space-x-1">
+										<div className='flex space-x-1'>
 											<button
-												onClick={() => handleEditExpense(expense.id)}
-												className="p-1 text-blue-500 hover:text-blue-700"
-												title="Edit expense"
+												onClick={() =>
+													handleEditExpense(
+														expense.id
+													)
+												}
+												className='p-1 text-blue-500 hover:text-blue-700'
+												title='Edit expense'
 											>
-												<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+												<svg
+													className='w-4 h-4'
+													fill='none'
+													stroke='currentColor'
+													viewBox='0 0 24 24'
+												>
+													<path
+														strokeLinecap='round'
+														strokeLinejoin='round'
+														strokeWidth={2}
+														d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+													/>
 												</svg>
 											</button>
 											<button
-												onClick={() => handleDeleteExpense(expense.id)}
-												className="p-1 text-red-500 hover:text-red-700"
-												title="Delete expense"
+												onClick={() =>
+													handleDeleteExpense(
+														expense.id
+													)
+												}
+												className='p-1 text-red-500 hover:text-red-700'
+												title='Delete expense'
 											>
-												<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+												<svg
+													className='w-4 h-4'
+													fill='none'
+													stroke='currentColor'
+													viewBox='0 0 24 24'
+												>
+													<path
+														strokeLinecap='round'
+														strokeLinejoin='round'
+														strokeWidth={2}
+														d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'
+													/>
 												</svg>
 											</button>
 										</div>
@@ -648,6 +765,21 @@ const GroupDetails = () => {
 										<span className='font-medium'>
 											{member.email}
 										</span>
+										{member.id === group.created_by && (
+											<span
+												className='ml-2'
+												title='Group Creator'
+											>
+												<svg
+													xmlns='http://www.w3.org/2000/svg'
+													className='inline-block w-4 h-4 text-yellow-500'
+													fill='currentColor'
+													viewBox='0 0 20 20'
+												>
+													<path d='M2.166 6.5l3.5 7 4.334-8.667L14.334 13.5l3.5-7L20 15.5H0l2.166-9z' />
+												</svg>
+											</span>
+										)}
 										{member.id === auth?.user?.id && (
 											<span className='text-xs text-blue-600 ml-2'>
 												(You)
@@ -732,15 +864,17 @@ const GroupDetails = () => {
 
 			{/* Enhanced Add Expense Modal */}
 			{showAddExpense && (
-				<div 
-					className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+				<div
+					className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'
 					onClick={closeExpenseModal} // Close when clicking backdrop
 				>
-					<div 
-						className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+					<div
+						className='bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto'
 						onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
 					>
-						<h2 className='text-xl font-semibold mb-4'>Add New Expense</h2>
+						<h2 className='text-xl font-semibold mb-4'>
+							Add New Expense
+						</h2>
 						<form onSubmit={handleAddExpense}>
 							<div className='space-y-6'>
 								{/* Basic Info */}
@@ -752,10 +886,12 @@ const GroupDetails = () => {
 										<input
 											type='text'
 											value={newExpense.description}
-											onChange={(e) => setNewExpense({
-												...newExpense,
-												description: e.target.value
-											})}
+											onChange={(e) =>
+												setNewExpense({
+													...newExpense,
+													description: e.target.value,
+												})
+											}
 											className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
 											placeholder='e.g., Dinner, Groceries'
 										/>
@@ -769,10 +905,13 @@ const GroupDetails = () => {
 											type='number'
 											step='0.01'
 											value={newExpense.total_amount}
-											onChange={(e) => setNewExpense({
-												...newExpense,
-												total_amount: e.target.value
-											})}
+											onChange={(e) =>
+												setNewExpense({
+													...newExpense,
+													total_amount:
+														e.target.value,
+												})
+											}
 											className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
 											required
 										/>
@@ -781,19 +920,25 @@ const GroupDetails = () => {
 
 								{/* Split Mode Selection */}
 								<div className='bg-gray-50 p-4 rounded'>
-									<h3 className='font-medium mb-3'>Split Options</h3>
+									<h3 className='font-medium mb-3'>
+										Split Options
+									</h3>
 									<div className='flex items-center space-x-4 mb-3'>
 										<label className='flex items-center'>
 											<input
 												type='checkbox'
 												checked={autoCalculateShares}
-												onChange={(e) => setAutoCalculateShares(e.target.checked)}
+												onChange={(e) =>
+													setAutoCalculateShares(
+														e.target.checked
+													)
+												}
 												className='mr-2'
 											/>
 											Auto-calculate shares
 										</label>
 									</div>
-									
+
 									{autoCalculateShares && (
 										<div className='flex space-x-4'>
 											<label className='flex items-center'>
@@ -801,8 +946,14 @@ const GroupDetails = () => {
 													type='radio'
 													name='splitMode'
 													value='equal'
-													checked={splitMode === 'equal'}
-													onChange={(e) => setSplitMode(e.target.value)}
+													checked={
+														splitMode === 'equal'
+													}
+													onChange={(e) =>
+														setSplitMode(
+															e.target.value
+														)
+													}
 													className='mr-2'
 												/>
 												Equal split
@@ -812,8 +963,15 @@ const GroupDetails = () => {
 													type='radio'
 													name='splitMode'
 													value='percentage'
-													checked={splitMode === 'percentage'}
-													onChange={(e) => setSplitMode(e.target.value)}
+													checked={
+														splitMode ===
+														'percentage'
+													}
+													onChange={(e) =>
+														setSplitMode(
+															e.target.value
+														)
+													}
 													className='mr-2'
 												/>
 												Proportional to amount paid
@@ -823,8 +981,14 @@ const GroupDetails = () => {
 													type='radio'
 													name='splitMode'
 													value='custom'
-													checked={splitMode === 'custom'}
-													onChange={(e) => setSplitMode(e.target.value)}
+													checked={
+														splitMode === 'custom'
+													}
+													onChange={(e) =>
+														setSplitMode(
+															e.target.value
+														)
+													}
 													className='mr-2'
 												/>
 												Custom amounts
@@ -835,38 +999,62 @@ const GroupDetails = () => {
 
 								{/* Payers Section */}
 								<div>
-									<label className="block text-sm font-medium mb-2">
+									<label className='block text-sm font-medium mb-2'>
 										Who Paid (Payers)
 									</label>
 									{newExpense.payers.map((payer, index) => (
-										<div key={index} className="flex space-x-2 mb-2">
+										<div
+											key={index}
+											className='flex space-x-2 mb-2'
+										>
 											<select
 												value={payer.user_id}
-												onChange={(e) => updatePayer(index, 'user_id', e.target.value)}
-												className="flex-1 p-2 border border-gray-300 rounded"
+												onChange={(e) =>
+													updatePayer(
+														index,
+														'user_id',
+														e.target.value
+													)
+												}
+												className='flex-1 p-2 border border-gray-300 rounded'
 												required
 											>
-												<option value="">Select User</option>
-												{getAvailableUsersForPayer(index).map(member => (
-													<option key={member.id} value={member.id}>
+												<option value=''>
+													Select User
+												</option>
+												{getAvailableUsersForPayer(
+													index
+												).map((member) => (
+													<option
+														key={member.id}
+														value={member.id}
+													>
 														{member.email}
 													</option>
 												))}
 											</select>
 											<input
-												type="number"
-												step="0.01"
-												placeholder="Amount paid"
+												type='number'
+												step='0.01'
+												placeholder='Amount paid'
 												value={payer.paid_amount}
-												onChange={(e) => updatePayer(index, 'paid_amount', e.target.value)}
-												className="flex-1 p-2 border border-gray-300 rounded"
+												onChange={(e) =>
+													updatePayer(
+														index,
+														'paid_amount',
+														e.target.value
+													)
+												}
+												className='flex-1 p-2 border border-gray-300 rounded'
 												required
 											/>
 											{newExpense.payers.length > 1 && (
 												<button
-													type="button"
-													onClick={() => removePayer(index)}
-													className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+													type='button'
+													onClick={() =>
+														removePayer(index)
+													}
+													className='px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600'
 												>
 													×
 												</button>
@@ -874,9 +1062,9 @@ const GroupDetails = () => {
 										</div>
 									))}
 									<button
-										type="button"
+										type='button'
 										onClick={addPayer}
-										className="text-blue-500 text-sm hover:text-blue-700"
+										className='text-blue-500 text-sm hover:text-blue-700'
 									>
 										+ Add another payer
 									</button>
@@ -884,57 +1072,93 @@ const GroupDetails = () => {
 
 								{/* Shares Section */}
 								<div>
-									<label className="block text-sm font-medium mb-2">
-										Who Owes (Shares) {autoCalculateShares && splitMode !== 'custom' && '(Auto-calculated)'}
+									<label className='block text-sm font-medium mb-2'>
+										Who Owes (Shares){' '}
+										{autoCalculateShares &&
+											splitMode !== 'custom' &&
+											'(Auto-calculated)'}
 									</label>
 									{newExpense.shares.map((share, index) => (
-										<div key={index} className="flex space-x-2 mb-2">
+										<div
+											key={index}
+											className='flex space-x-2 mb-2'
+										>
 											<select
 												value={share.user_id}
-												onChange={(e) => updateShare(index, 'user_id', e.target.value)}
-												className="flex-1 p-2 border border-gray-300 rounded"
+												onChange={(e) =>
+													updateShare(
+														index,
+														'user_id',
+														e.target.value
+													)
+												}
+												className='flex-1 p-2 border border-gray-300 rounded'
 												required
-												disabled={autoCalculateShares && splitMode !== 'custom'}
+												disabled={
+													autoCalculateShares &&
+													splitMode !== 'custom'
+												}
 											>
-												<option value="">Select User</option>
-												{getAvailableUsersForShare(index).map(member => (
-													<option key={member.id} value={member.id}>
+												<option value=''>
+													Select User
+												</option>
+												{getAvailableUsersForShare(
+													index
+												).map((member) => (
+													<option
+														key={member.id}
+														value={member.id}
+													>
 														{member.email}
 													</option>
 												))}
 											</select>
 											<input
-												type="number"
-												step="0.01"
-												placeholder="Amount owed"
+												type='number'
+												step='0.01'
+												placeholder='Amount owed'
 												value={share.share_amount}
-												onChange={(e) => updateShare(index, 'share_amount', e.target.value)}
-												className="flex-1 p-2 border border-gray-300 rounded"
+												onChange={(e) =>
+													updateShare(
+														index,
+														'share_amount',
+														e.target.value
+													)
+												}
+												className='flex-1 p-2 border border-gray-300 rounded'
 												required
-												disabled={autoCalculateShares && splitMode !== 'custom'}
+												disabled={
+													autoCalculateShares &&
+													splitMode !== 'custom'
+												}
 											/>
 											{newExpense.shares.length > 1 && (
 												<button
-													type="button"
-													onClick={() => removeShare(index)}
-													className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+													type='button'
+													onClick={() =>
+														removeShare(index)
+													}
+													className='px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600'
 												>
 													×
 												</button>
 											)}
 										</div>
 									))}
-									
+
 									{/* Smart add button */}
-									{autoCalculateShares && splitMode !== 'custom' ? (
-										<div className="text-sm text-gray-600">
-											💡 Switch to "Custom amounts" mode to manually add/remove people who owe
+									{autoCalculateShares &&
+									splitMode !== 'custom' ? (
+										<div className='text-sm text-gray-600'>
+											💡 Switch to "Custom amounts" mode
+											to manually add/remove people who
+											owe
 										</div>
 									) : (
 										<button
-											type="button"
+											type='button'
 											onClick={addShare}
-											className="text-blue-500 text-sm hover:text-blue-700"
+											className='text-blue-500 text-sm hover:text-blue-700'
 										>
 											+ Add another person who owes
 										</button>
@@ -943,72 +1167,152 @@ const GroupDetails = () => {
 
 								{/* Enhanced Validation Summary */}
 								<div className='bg-gray-50 p-4 rounded'>
-									<h3 className='font-medium mb-3'>Validation Summary</h3>
+									<h3 className='font-medium mb-3'>
+										Validation Summary
+									</h3>
 									{(() => {
-										const { totalAmount, totalPaid, totalShares, remainingPaid, remainingShares } = calculateRemainingAmount();
-										
+										const {
+											totalAmount,
+											totalPaid,
+											totalShares,
+											remainingPaid,
+											remainingShares,
+										} = calculateRemainingAmount();
+
 										return (
 											<div className='space-y-2 text-sm'>
 												<div className='grid grid-cols-2 gap-4'>
 													<div>
-														<span className='font-medium'>Total Amount:</span> ${totalAmount.toFixed(2)}
+														<span className='font-medium'>
+															Total Amount:
+														</span>{' '}
+														$
+														{totalAmount.toFixed(2)}
 													</div>
 													<div>
-														<span className='font-medium'>Total Paid:</span> 
-														<span className={Math.abs(totalPaid - totalAmount) < 0.01 ? 'text-green-600' : 'text-red-600'}>
-															{' '}${totalPaid.toFixed(2)}
+														<span className='font-medium'>
+															Total Paid:
+														</span>
+														<span
+															className={
+																Math.abs(
+																	totalPaid -
+																		totalAmount
+																) < 0.01
+																	? 'text-green-600'
+																	: 'text-red-600'
+															}
+														>
+															{' '}
+															$
+															{totalPaid.toFixed(
+																2
+															)}
 														</span>
 													</div>
 												</div>
-												
+
 												<div className='grid grid-cols-2 gap-4'>
 													<div>
-														<span className='font-medium'>Total Shares:</span>
-														<span className={Math.abs(totalShares - totalAmount) < 0.01 ? 'text-green-600' : 'text-red-600'}>
-															{' '}${totalShares.toFixed(2)}
+														<span className='font-medium'>
+															Total Shares:
+														</span>
+														<span
+															className={
+																Math.abs(
+																	totalShares -
+																		totalAmount
+																) < 0.01
+																	? 'text-green-600'
+																	: 'text-red-600'
+															}
+														>
+															{' '}
+															$
+															{totalShares.toFixed(
+																2
+															)}
 														</span>
 													</div>
 													<div>
-														<span className='font-medium'>Remaining:</span>
-														<span className={Math.abs(remainingShares) < 0.01 ? 'text-green-600' : 'text-orange-600'}>
-															{' '}${remainingShares.toFixed(2)}
+														<span className='font-medium'>
+															Remaining:
+														</span>
+														<span
+															className={
+																Math.abs(
+																	remainingShares
+																) < 0.01
+																	? 'text-green-600'
+																	: 'text-orange-600'
+															}
+														>
+															{' '}
+															$
+															{remainingShares.toFixed(
+																2
+															)}
 														</span>
 													</div>
 												</div>
 
 												{/* Show precision info for equal splits */}
-												{splitMode === 'equal' && Math.abs(remainingShares) < 0.01 && remainingShares !== 0 && (
-													<div className="bg-blue-100 border border-blue-300 text-blue-700 px-3 py-2 rounded text-xs">
-														ℹ️ Precision difference of ${Math.abs(remainingShares).toFixed(2)} automatically distributed
-													</div>
-												)}
+												{splitMode === 'equal' &&
+													Math.abs(remainingShares) <
+														0.01 &&
+													remainingShares !== 0 && (
+														<div className='bg-blue-100 border border-blue-300 text-blue-700 px-3 py-2 rounded text-xs'>
+															ℹ️ Precision
+															difference of $
+															{Math.abs(
+																remainingShares
+															).toFixed(2)}{' '}
+															automatically
+															distributed
+														</div>
+													)}
 
-												{Math.abs(totalPaid - totalAmount) < 0.01 && Math.abs(totalShares - totalAmount) < 0.01 && (
-													<div className="bg-green-100 border border-green-300 text-green-700 px-3 py-2 rounded">
-														✅ All amounts are balanced!
-													</div>
-												)}
+												{Math.abs(
+													totalPaid - totalAmount
+												) < 0.01 &&
+													Math.abs(
+														totalShares -
+															totalAmount
+													) < 0.01 && (
+														<div className='bg-green-100 border border-green-300 text-green-700 px-3 py-2 rounded'>
+															✅ All amounts are
+															balanced!
+														</div>
+													)}
 											</div>
 										);
 									})()}
 								</div>
 
 								{/* Add helpful hints */}
-								<div className="text-sm text-gray-600 mb-2">
-									💡 Custom amounts must add up to the total expense amount (${totalAmount.toFixed(2)})
+								<div className='text-sm text-gray-600 mb-2'>
+									💡 Custom amounts must add up to the total
+									expense amount (${totalAmount.toFixed(2)})
 								</div>
 
 								{/* Add real-time feedback */}
-								<div className={`text-sm ${totalShares > totalAmount ? 'text-red-600' : 'text-green-600'}`}>
-									Total shares: ${totalShares.toFixed(2)} / ${totalAmount.toFixed(2)}
+								<div
+									className={`text-sm ${
+										totalShares > totalAmount
+											? 'text-red-600'
+											: 'text-green-600'
+									}`}
+								>
+									Total shares: ${totalShares.toFixed(2)} / $
+									{totalAmount.toFixed(2)}
 								</div>
 
 								{/* Add auto-balance button */}
 								{Math.abs(totalShares - totalAmount) > 0.01 && (
 									<button
-										type="button"
+										type='button'
 										onClick={autoBalanceShares}
-										className="text-blue-500 text-sm hover:text-blue-700"
+										className='text-blue-500 text-sm hover:text-blue-700'
 									>
 										🔧 Auto-balance remaining amount
 									</button>
@@ -1017,21 +1321,31 @@ const GroupDetails = () => {
 
 							<div className='flex justify-end space-x-3 mt-6'>
 								<button
-									type="button"
+									type='button'
 									onClick={() => {
 										resetExpenseForm(); // Reset form data
 										setShowAddExpense(false); // Close modal
 									}}
-									className="px-4 py-2 text-gray-600 hover:text-gray-800"
+									className='px-4 py-2 text-gray-600 hover:text-gray-800'
 								>
 									Cancel
 								</button>
 								<button
-									type="submit"
-									className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+									type='submit'
+									className='bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed'
 									disabled={(() => {
-										const { totalAmount, totalPaid, totalShares } = calculateRemainingAmount();
-										return Math.abs(totalPaid - totalAmount) > 0.01 || Math.abs(totalShares - totalAmount) > 0.01;
+										const {
+											totalAmount,
+											totalPaid,
+											totalShares,
+										} = calculateRemainingAmount();
+										return (
+											Math.abs(totalPaid - totalAmount) >
+												0.01 ||
+											Math.abs(
+												totalShares - totalAmount
+											) > 0.01
+										);
 									})()}
 								>
 									Add Expense
@@ -1044,9 +1358,11 @@ const GroupDetails = () => {
 
 			{/* Edit Expense Modal */}
 			{showEditExpense && editingExpense && (
-				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-					<div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-						<h2 className="text-xl font-semibold mb-4">Edit Expense</h2>
+				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+					<div className='bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto'>
+						<h2 className='text-xl font-semibold mb-4'>
+							Edit Expense
+						</h2>
 						<form onSubmit={handleUpdateExpense}>
 							<div className='space-y-6'>
 								{/* Basic Info */}
@@ -1058,10 +1374,12 @@ const GroupDetails = () => {
 										<input
 											type='text'
 											value={editingExpense.description}
-											onChange={(e) => setEditingExpense({
-												...editingExpense,
-												description: e.target.value
-											})}
+											onChange={(e) =>
+												setEditingExpense({
+													...editingExpense,
+													description: e.target.value,
+												})
+											}
 											className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
 											placeholder='e.g., Dinner, Groceries'
 										/>
@@ -1075,10 +1393,13 @@ const GroupDetails = () => {
 											type='number'
 											step='0.01'
 											value={editingExpense.total_amount}
-											onChange={(e) => setEditingExpense({
-												...editingExpense,
-												total_amount: e.target.value
-											})}
+											onChange={(e) =>
+												setEditingExpense({
+													...editingExpense,
+													total_amount:
+														e.target.value,
+												})
+											}
 											className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
 											required
 										/>
@@ -1087,19 +1408,25 @@ const GroupDetails = () => {
 
 								{/* Split Mode Selection */}
 								<div className='bg-gray-50 p-4 rounded'>
-									<h3 className='font-medium mb-3'>Split Options</h3>
+									<h3 className='font-medium mb-3'>
+										Split Options
+									</h3>
 									<div className='flex items-center space-x-4 mb-3'>
 										<label className='flex items-center'>
 											<input
 												type='checkbox'
 												checked={autoCalculateShares}
-												onChange={(e) => setAutoCalculateShares(e.target.checked)}
+												onChange={(e) =>
+													setAutoCalculateShares(
+														e.target.checked
+													)
+												}
 												className='mr-2'
 											/>
 											Auto-calculate shares
 										</label>
 									</div>
-									
+
 									{autoCalculateShares && (
 										<div className='flex space-x-4'>
 											<label className='flex items-center'>
@@ -1107,8 +1434,14 @@ const GroupDetails = () => {
 													type='radio'
 													name='splitMode'
 													value='equal'
-													checked={splitMode === 'equal'}
-													onChange={(e) => setSplitMode(e.target.value)}
+													checked={
+														splitMode === 'equal'
+													}
+													onChange={(e) =>
+														setSplitMode(
+															e.target.value
+														)
+													}
 													className='mr-2'
 												/>
 												Equal split
@@ -1118,8 +1451,15 @@ const GroupDetails = () => {
 													type='radio'
 													name='splitMode'
 													value='percentage'
-													checked={splitMode === 'percentage'}
-													onChange={(e) => setSplitMode(e.target.value)}
+													checked={
+														splitMode ===
+														'percentage'
+													}
+													onChange={(e) =>
+														setSplitMode(
+															e.target.value
+														)
+													}
 													className='mr-2'
 												/>
 												Proportional to amount paid
@@ -1129,8 +1469,14 @@ const GroupDetails = () => {
 													type='radio'
 													name='splitMode'
 													value='custom'
-													checked={splitMode === 'custom'}
-													onChange={(e) => setSplitMode(e.target.value)}
+													checked={
+														splitMode === 'custom'
+													}
+													onChange={(e) =>
+														setSplitMode(
+															e.target.value
+														)
+													}
 													className='mr-2'
 												/>
 												Custom amounts
@@ -1141,64 +1487,113 @@ const GroupDetails = () => {
 
 								{/* Payers Section */}
 								<div>
-									<label className="block text-sm font-medium mb-2">
+									<label className='block text-sm font-medium mb-2'>
 										Who Paid (Payers)
 									</label>
-									{editingExpense.payers.map((payer, index) => (
-										<div key={index} className="flex space-x-2 mb-2">
-											<select
-												value={payer.user_id}
-												onChange={(e) => setEditingExpense({
-													...editingExpense,
-													payers: editingExpense.payers.map((p, i) =>
-														i === index ? { ...p, user_id: e.target.value } : p
-													)
-												})}
-												className="flex-1 p-2 border border-gray-300 rounded"
-												required
+									{editingExpense.payers.map(
+										(payer, index) => (
+											<div
+												key={index}
+												className='flex space-x-2 mb-2'
 											>
-												<option value="">Select User</option>
-												{getAvailableUsersForPayer(index).map(member => (
-													<option key={member.id} value={member.id}>
-														{member.email}
-													</option>
-												))}
-											</select>
-											<input
-												type="number"
-												step="0.01"
-												placeholder="Amount paid"
-												value={payer.paid_amount}
-												onChange={(e) => setEditingExpense({
-													...editingExpense,
-													payers: editingExpense.payers.map((p, i) =>
-														i === index ? { ...p, paid_amount: e.target.value } : p
-													)
-												})}
-												className="flex-1 p-2 border border-gray-300 rounded"
-												required
-											/>
-											{editingExpense.payers.length > 1 && (
-												<button
-													type="button"
-													onClick={() => setEditingExpense({
-														...editingExpense,
-														payers: editingExpense.payers.filter((_, i) => i !== index)
-													})}
-													className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+												<select
+													value={payer.user_id}
+													onChange={(e) =>
+														setEditingExpense({
+															...editingExpense,
+															payers: editingExpense.payers.map(
+																(p, i) =>
+																	i === index
+																		? {
+																				...p,
+																				user_id:
+																					e
+																						.target
+																						.value,
+																		  }
+																		: p
+															),
+														})
+													}
+													className='flex-1 p-2 border border-gray-300 rounded'
+													required
 												>
-													×
-												</button>
-											)}
-										</div>
-									))}
+													<option value=''>
+														Select User
+													</option>
+													{getAvailableUsersForPayer(
+														index
+													).map((member) => (
+														<option
+															key={member.id}
+															value={member.id}
+														>
+															{member.email}
+														</option>
+													))}
+												</select>
+												<input
+													type='number'
+													step='0.01'
+													placeholder='Amount paid'
+													value={payer.paid_amount}
+													onChange={(e) =>
+														setEditingExpense({
+															...editingExpense,
+															payers: editingExpense.payers.map(
+																(p, i) =>
+																	i === index
+																		? {
+																				...p,
+																				paid_amount:
+																					e
+																						.target
+																						.value,
+																		  }
+																		: p
+															),
+														})
+													}
+													className='flex-1 p-2 border border-gray-300 rounded'
+													required
+												/>
+												{editingExpense.payers.length >
+													1 && (
+													<button
+														type='button'
+														onClick={() =>
+															setEditingExpense({
+																...editingExpense,
+																payers: editingExpense.payers.filter(
+																	(_, i) =>
+																		i !==
+																		index
+																),
+															})
+														}
+														className='px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600'
+													>
+														×
+													</button>
+												)}
+											</div>
+										)
+									)}
 									<button
-										type="button"
-										onClick={() => setEditingExpense({
-											...editingExpense,
-											payers: [...editingExpense.payers, { user_id: '', paid_amount: '' }]
-										})}
-										className="text-blue-500 text-sm hover:text-blue-700"
+										type='button'
+										onClick={() =>
+											setEditingExpense({
+												...editingExpense,
+												payers: [
+													...editingExpense.payers,
+													{
+														user_id: '',
+														paid_amount: '',
+													},
+												],
+											})
+										}
+										className='text-blue-500 text-sm hover:text-blue-700'
 									>
 										+ Add another payer
 									</button>
@@ -1206,73 +1601,134 @@ const GroupDetails = () => {
 
 								{/* Shares Section */}
 								<div>
-									<label className="block text-sm font-medium mb-2">
-										Who Owes (Shares) {autoCalculateShares && splitMode !== 'custom' && '(Auto-calculated)'}
+									<label className='block text-sm font-medium mb-2'>
+										Who Owes (Shares){' '}
+										{autoCalculateShares &&
+											splitMode !== 'custom' &&
+											'(Auto-calculated)'}
 									</label>
-									{editingExpense.shares.map((share, index) => (
-										<div key={index} className="flex space-x-2 mb-2">
-											<select
-												value={share.user_id}
-												onChange={(e) => setEditingExpense({
-													...editingExpense,
-													shares: editingExpense.shares.map((s, i) =>
-														i === index ? { ...s, user_id: e.target.value } : s
-													)
-												})}
-												className="flex-1 p-2 border border-gray-300 rounded"
-												required
-												disabled={autoCalculateShares && splitMode !== 'custom'}
+									{editingExpense.shares.map(
+										(share, index) => (
+											<div
+												key={index}
+												className='flex space-x-2 mb-2'
 											>
-												<option value="">Select User</option>
-												{getAvailableUsersForShare(index).map(member => (
-													<option key={member.id} value={member.id}>
-														{member.email}
-													</option>
-												))}
-											</select>
-											<input
-												type="number"
-												step="0.01"
-												placeholder="Amount owed"
-												value={share.share_amount}
-												onChange={(e) => setEditingExpense({
-													...editingExpense,
-													shares: editingExpense.shares.map((s, i) =>
-														i === index ? { ...s, share_amount: e.target.value } : s
-													)
-												})}
-												className="flex-1 p-2 border border-gray-300 rounded"
-												required
-												disabled={autoCalculateShares && splitMode !== 'custom'}
-											/>
-											{editingExpense.shares.length > 1 && (
-												<button
-													type="button"
-													onClick={() => setEditingExpense({
-														...editingExpense,
-														shares: editingExpense.shares.filter((_, i) => i !== index)
-													})}
-													className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+												<select
+													value={share.user_id}
+													onChange={(e) =>
+														setEditingExpense({
+															...editingExpense,
+															shares: editingExpense.shares.map(
+																(s, i) =>
+																	i === index
+																		? {
+																				...s,
+																				user_id:
+																					e
+																						.target
+																						.value,
+																		  }
+																		: s
+															),
+														})
+													}
+													className='flex-1 p-2 border border-gray-300 rounded'
+													required
+													disabled={
+														autoCalculateShares &&
+														splitMode !== 'custom'
+													}
 												>
-													×
-												</button>
-											)}
-										</div>
-									))}
-									
+													<option value=''>
+														Select User
+													</option>
+													{getAvailableUsersForShare(
+														index
+													).map((member) => (
+														<option
+															key={member.id}
+															value={member.id}
+														>
+															{member.email}
+														</option>
+													))}
+												</select>
+												<input
+													type='number'
+													step='0.01'
+													placeholder='Amount owed'
+													value={share.share_amount}
+													onChange={(e) =>
+														setEditingExpense({
+															...editingExpense,
+															shares: editingExpense.shares.map(
+																(s, i) =>
+																	i === index
+																		? {
+																				...s,
+																				share_amount:
+																					e
+																						.target
+																						.value,
+																		  }
+																		: s
+															),
+														})
+													}
+													className='flex-1 p-2 border border-gray-300 rounded'
+													required
+													disabled={
+														autoCalculateShares &&
+														splitMode !== 'custom'
+													}
+												/>
+												{editingExpense.shares.length >
+													1 && (
+													<button
+														type='button'
+														onClick={() =>
+															setEditingExpense({
+																...editingExpense,
+																shares: editingExpense.shares.filter(
+																	(_, i) =>
+																		i !==
+																		index
+																),
+															})
+														}
+														className='px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600'
+													>
+														×
+													</button>
+												)}
+											</div>
+										)
+									)}
+
 									{/* Smart add button */}
-									{autoCalculateShares && splitMode !== 'custom' ? (
-										<div className="text-sm text-gray-600">
-											💡 Switch to "Custom amounts" mode to manually add/remove people who owe
+									{autoCalculateShares &&
+									splitMode !== 'custom' ? (
+										<div className='text-sm text-gray-600'>
+											💡 Switch to "Custom amounts" mode
+											to manually add/remove people who
+											owe
 										</div>
 									) : (
 										<button
-											type="button"
-											onClick={() => setEditingExpense({
-												...editingExpense,
-												shares: [...editingExpense.shares, { user_id: '', share_amount: '' }]
-											})}
-											className="text-blue-500 text-sm hover:text-blue-700"
+											type='button'
+											onClick={() =>
+												setEditingExpense({
+													...editingExpense,
+													shares: [
+														...editingExpense.shares,
+														{
+															user_id: '',
+															share_amount: '',
+														},
+													],
+												})
+											}
+											className='text-blue-500 text-sm hover:text-blue-700'
 										>
 											+ Add another person who owes
 										</button>
@@ -1281,72 +1737,152 @@ const GroupDetails = () => {
 
 								{/* Enhanced Validation Summary */}
 								<div className='bg-gray-50 p-4 rounded'>
-									<h3 className='font-medium mb-3'>Validation Summary</h3>
+									<h3 className='font-medium mb-3'>
+										Validation Summary
+									</h3>
 									{(() => {
-										const { totalAmount, totalPaid, totalShares, remainingPaid, remainingShares } = calculateRemainingAmount();
-										
+										const {
+											totalAmount,
+											totalPaid,
+											totalShares,
+											remainingPaid,
+											remainingShares,
+										} = calculateRemainingAmount();
+
 										return (
 											<div className='space-y-2 text-sm'>
 												<div className='grid grid-cols-2 gap-4'>
 													<div>
-														<span className='font-medium'>Total Amount:</span> ${totalAmount.toFixed(2)}
+														<span className='font-medium'>
+															Total Amount:
+														</span>{' '}
+														$
+														{totalAmount.toFixed(2)}
 													</div>
 													<div>
-														<span className='font-medium'>Total Paid:</span> 
-														<span className={Math.abs(totalPaid - totalAmount) < 0.01 ? 'text-green-600' : 'text-red-600'}>
-															{' '}${totalPaid.toFixed(2)}
+														<span className='font-medium'>
+															Total Paid:
+														</span>
+														<span
+															className={
+																Math.abs(
+																	totalPaid -
+																		totalAmount
+																) < 0.01
+																	? 'text-green-600'
+																	: 'text-red-600'
+															}
+														>
+															{' '}
+															$
+															{totalPaid.toFixed(
+																2
+															)}
 														</span>
 													</div>
 												</div>
-												
+
 												<div className='grid grid-cols-2 gap-4'>
 													<div>
-														<span className='font-medium'>Total Shares:</span>
-														<span className={Math.abs(totalShares - totalAmount) < 0.01 ? 'text-green-600' : 'text-red-600'}>
-															{' '}${totalShares.toFixed(2)}
+														<span className='font-medium'>
+															Total Shares:
+														</span>
+														<span
+															className={
+																Math.abs(
+																	totalShares -
+																		totalAmount
+																) < 0.01
+																	? 'text-green-600'
+																	: 'text-red-600'
+															}
+														>
+															{' '}
+															$
+															{totalShares.toFixed(
+																2
+															)}
 														</span>
 													</div>
 													<div>
-														<span className='font-medium'>Remaining:</span>
-														<span className={Math.abs(remainingShares) < 0.01 ? 'text-green-600' : 'text-orange-600'}>
-															{' '}${remainingShares.toFixed(2)}
+														<span className='font-medium'>
+															Remaining:
+														</span>
+														<span
+															className={
+																Math.abs(
+																	remainingShares
+																) < 0.01
+																	? 'text-green-600'
+																	: 'text-orange-600'
+															}
+														>
+															{' '}
+															$
+															{remainingShares.toFixed(
+																2
+															)}
 														</span>
 													</div>
 												</div>
 
 												{/* Show precision info for equal splits */}
-												{splitMode === 'equal' && Math.abs(remainingShares) < 0.01 && remainingShares !== 0 && (
-													<div className="bg-blue-100 border border-blue-300 text-blue-700 px-3 py-2 rounded text-xs">
-														ℹ️ Precision difference of ${Math.abs(remainingShares).toFixed(2)} automatically distributed
-													</div>
-												)}
+												{splitMode === 'equal' &&
+													Math.abs(remainingShares) <
+														0.01 &&
+													remainingShares !== 0 && (
+														<div className='bg-blue-100 border border-blue-300 text-blue-700 px-3 py-2 rounded text-xs'>
+															ℹ️ Precision
+															difference of $
+															{Math.abs(
+																remainingShares
+															).toFixed(2)}{' '}
+															automatically
+															distributed
+														</div>
+													)}
 
-												{Math.abs(totalPaid - totalAmount) < 0.01 && Math.abs(totalShares - totalAmount) < 0.01 && (
-													<div className="bg-green-100 border border-green-300 text-green-700 px-3 py-2 rounded">
-														✅ All amounts are balanced!
-													</div>
-												)}
+												{Math.abs(
+													totalPaid - totalAmount
+												) < 0.01 &&
+													Math.abs(
+														totalShares -
+															totalAmount
+													) < 0.01 && (
+														<div className='bg-green-100 border border-green-300 text-green-700 px-3 py-2 rounded'>
+															✅ All amounts are
+															balanced!
+														</div>
+													)}
 											</div>
 										);
 									})()}
 								</div>
 
 								{/* Add helpful hints */}
-								<div className="text-sm text-gray-600 mb-2">
-									💡 Custom amounts must add up to the total expense amount (${totalAmount.toFixed(2)})
+								<div className='text-sm text-gray-600 mb-2'>
+									💡 Custom amounts must add up to the total
+									expense amount (${totalAmount.toFixed(2)})
 								</div>
 
 								{/* Add real-time feedback */}
-								<div className={`text-sm ${totalShares > totalAmount ? 'text-red-600' : 'text-green-600'}`}>
-									Total shares: ${totalShares.toFixed(2)} / ${totalAmount.toFixed(2)}
+								<div
+									className={`text-sm ${
+										totalShares > totalAmount
+											? 'text-red-600'
+											: 'text-green-600'
+									}`}
+								>
+									Total shares: ${totalShares.toFixed(2)} / $
+									{totalAmount.toFixed(2)}
 								</div>
 
 								{/* Add auto-balance button */}
 								{Math.abs(totalShares - totalAmount) > 0.01 && (
 									<button
-										type="button"
+										type='button'
 										onClick={autoBalanceShares}
-										className="text-blue-500 text-sm hover:text-blue-700"
+										className='text-blue-500 text-sm hover:text-blue-700'
 									>
 										🔧 Auto-balance remaining amount
 									</button>
@@ -1355,18 +1891,18 @@ const GroupDetails = () => {
 
 							<div className='flex justify-end space-x-3 mt-6'>
 								<button
-									type="button"
+									type='button'
 									onClick={() => {
 										setShowEditExpense(false);
 										setEditingExpense(null);
 									}}
-									className="px-4 py-2 text-gray-600 hover:text-gray-800"
+									className='px-4 py-2 text-gray-600 hover:text-gray-800'
 								>
 									Cancel
 								</button>
 								<button
-									type="submit"
-									className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+									type='submit'
+									className='bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600'
 								>
 									Update Expense
 								</button>
@@ -1384,15 +1920,74 @@ const GroupDetails = () => {
 					setExpenseToDelete(null);
 				}}
 				onConfirm={confirmDeleteExpense}
-				title="Delete Expense"
-				message="Are you sure you want to delete this expense? This action cannot be undone."
-				confirmText="Delete"
-				cancelText="Cancel"
-				confirmColor="red"
-				icon="delete"
+				title='Delete Expense'
+				message='Are you sure you want to delete this expense? This action cannot be undone.'
+				confirmText='Delete'
+				cancelText='Cancel'
+				confirmColor='red'
+				icon='delete'
 				isLoading={isDeleting}
-				loadingText="Deleting..."
+				loadingText='Deleting...'
 			/>
+
+			{isCreator && (
+				<div className='flex space-x-2 mt-4'>
+					<button
+						onClick={handleEditGroup}
+						className='bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600'
+					>
+						Edit Group
+					</button>
+					<button
+						onClick={handleDeleteGroup}
+						className='bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600'
+						disabled={isDeleting}
+					>
+						{isDeleting ? 'Deleting...' : 'Delete Group'}
+					</button>
+				</div>
+			)}
+
+			{editGroupMode && (
+				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+					<div className='bg-white rounded-lg p-6 w-full max-w-md'>
+						<h2 className='text-xl font-semibold mb-4'>
+							Edit Group Name
+						</h2>
+						<form onSubmit={handleEditGroupSubmit}>
+							<div className='mb-4'>
+								<label className='block text-sm font-medium mb-2'>
+									New Group Name
+								</label>
+								<input
+									type='text'
+									value={newGroupName}
+									onChange={(e) =>
+										setNewGroupName(e.target.value)
+									}
+									className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
+									required
+								/>
+							</div>
+							<div className='flex justify-end space-x-3'>
+								<button
+									type='button'
+									onClick={() => setEditGroupMode(false)}
+									className='px-4 py-2 text-gray-600 hover:text-gray-800'
+								>
+									Cancel
+								</button>
+								<button
+									type='submit'
+									className='bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600'
+								>
+									Save
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

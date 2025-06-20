@@ -3,7 +3,8 @@ from typing import List, Optional
 from datetime import datetime
 
 class GroupCreate(BaseModel):
-    name: str
+    email: str
+    name: str 
     created_by: int
 
 class ExpenseCreate(BaseModel):
