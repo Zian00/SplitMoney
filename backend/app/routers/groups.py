@@ -74,7 +74,7 @@ async def add_member_by_email(group_id: int, member_data: dict, session: Session
         User.email == member_data["email"])).first()
     if not user:
         raise HTTPException(
-            status_code=404, detail="User with this email not found")
+            status_code=404, detail="User not found")
 
     # Check if already a member
     existing_membership = session.exec(

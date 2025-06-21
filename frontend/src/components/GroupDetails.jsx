@@ -32,6 +32,7 @@ const GroupDetails = () => {
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [editGroupMode, setEditGroupMode] = useState(false);
 	const [newGroupName, setNewGroupName] = useState('');
+	const [addMemberError, setAddMemberError] = useState('');
 
 	const isCreator = auth?.user?.id === group?.created_by;
 
@@ -78,7 +79,7 @@ const GroupDetails = () => {
 
 	const handleAddMember = async (e) => {
 		e.preventDefault();
-		setError('');
+		setAddMemberError('');
 		setSuccess('');
 
 		try {
@@ -94,7 +95,9 @@ const GroupDetails = () => {
 			setShowAddMember(false);
 			fetchGroupMembers(); // Refresh members list
 		} catch (err) {
-			setError(err.response?.data?.detail || 'Failed to add member');
+			setAddMemberError(
+				err.response?.data?.detail || 'Failed to add member'
+			);
 			console.error('Error adding member:', err);
 		}
 	};
@@ -428,6 +431,7 @@ const GroupDetails = () => {
 		setNewMemberEmail('');
 		setError('');
 		setSuccess('');
+		setAddMemberError('');
 	};
 
 	// Update the modal close logic
@@ -819,6 +823,14 @@ const GroupDetails = () => {
 						<h2 className='text-xl font-semibold mb-4'>
 							Add Member to Group
 						</h2>
+
+						{/* Display the error here */}
+						{addMemberError && (
+							<div className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm'>
+								{addMemberError}
+							</div>
+						)}
+
 						<form onSubmit={handleAddMember}>
 							<div className='mb-4'>
 								<label className='block text-sm font-medium mb-2'>
