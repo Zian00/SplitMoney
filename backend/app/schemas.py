@@ -17,3 +17,13 @@ class ExpenseCreate(BaseModel):
 class ExpenseUpdate(BaseModel):
     description: Optional[str] = None
     total_amount: Optional[float] = None 
+
+# Add these new models for the summary response
+class UserInfo(BaseModel):
+    id: int
+    name: str
+
+class Debt(BaseModel):
+    from_user: UserInfo
+    to_user: UserInfo
+    amount: float

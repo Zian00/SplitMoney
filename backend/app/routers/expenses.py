@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select, delete
 from typing import List
 from app.database import get_session
-from app.models import Expense, ExpensePayer, ExpenseShare, Group, User
+from app.models import Expense, ExpensePayer, ExpenseShare, Group
 
 router = APIRouter()
 

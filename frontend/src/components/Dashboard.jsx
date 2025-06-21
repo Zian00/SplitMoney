@@ -11,6 +11,10 @@ const Dashboard = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 
+	const [showCreateForm, setShowCreateForm] = useState(false);
+	const [newGroupName, setNewGroupName] = useState('');
+	const [createGroupError, setCreateGroupError] = useState('');
+
 	if (!auth || !auth.user) {
 		return (
 			<div className='flex items-center justify-center h-screen'>
@@ -38,6 +42,22 @@ const Dashboard = () => {
 			setError('Failed to load groups');
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const handleCreateGroup = async (e) => {
+		e.preventDefault();
+		setCreateGroupError('');
+		try {
+			await apiClient.post('/api/groups', {
+				name: newGroupName,
+				created_by: user.id,
+			});
+			setNewGroupName('');
+			setShowCreateForm(false);
+			fetchUserGroups(); // Refresh groups list
+		} catch (err) {
+			setCreateGroupError('Failed to create group');
 		}
 	};
 
@@ -82,7 +102,7 @@ const Dashboard = () => {
 					</h2>
 					<div className='space-y-3'>
 						<button
-							onClick={() => navigate('/groups')}
+							onClick={() => setShowCreateForm(true)}
 							className='w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors'
 						>
 							Create New Group
@@ -117,7 +137,9 @@ const Dashboard = () => {
 								<div
 									key={group.id}
 									className='border rounded p-3 hover:bg-gray-50 cursor-pointer'
-									onClick={() => navigate(`/groups/${group.id}`)}
+									onClick={() =>
+										navigate(`/groups/${group.id}`)
+									}
 								>
 									<h3 className='font-medium'>
 										{group.name}
@@ -158,6 +180,52 @@ const Dashboard = () => {
 					</div>
 				</div>
 			</div>
+
+			{showCreateForm && (
+				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+					<div className='bg-white rounded-lg p-6 w-full max-w-md'>
+						<h2 className='text-xl font-semibold mb-4'>
+							Create New Group
+						</h2>
+						<form onSubmit={handleCreateGroup}>
+							<div className='mb-4'>
+								<label className='block text-sm font-medium mb-2'>
+									Group Name
+								</label>
+								<input
+									type='text'
+									value={newGroupName}
+									onChange={(e) =>
+										setNewGroupName(e.target.value)
+									}
+									className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
+									required
+								/>
+							</div>
+							{createGroupError && (
+								<div className='text-red-500 mb-2'>
+									{createGroupError}
+								</div>
+							)}
+							<div className='flex justify-end space-x-3'>
+								<button
+									type='button'
+									onClick={() => setShowCreateForm(false)}
+									className='px-4 py-2 text-gray-600 hover:text-gray-800'
+								>
+									Cancel
+								</button>
+								<button
+									type='submit'
+									className='bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600'
+								>
+									Create
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

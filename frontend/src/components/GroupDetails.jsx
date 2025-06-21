@@ -34,12 +34,21 @@ const GroupDetails = () => {
 	const [newGroupName, setNewGroupName] = useState('');
 	const [addMemberError, setAddMemberError] = useState('');
 
+	const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] =
+		useState(false);
+	const [memberToRemove, setMemberToRemove] = useState(null);
+	const [isRemovingMember, setIsRemovingMember] = useState(false);
+
+	const [summary, setSummary] = useState([]);
+	const [summaryLoading, setSummaryLoading] = useState(true);
+
 	const isCreator = auth?.user?.id === group?.created_by;
 
 	useEffect(() => {
 		fetchGroupDetails();
 		fetchGroupExpenses();
 		fetchGroupMembers();
+		fetchSummary();
 	}, [groupId]);
 
 	const fetchGroupDetails = async () => {
@@ -54,10 +63,22 @@ const GroupDetails = () => {
 
 	const fetchGroupExpenses = async () => {
 		try {
-			const response = await apiClient.get(
-				`/api/groups/${groupId}/expenses`
+			const response = await apiClient.get(`/api/groups/${groupId}/expenses`);
+			const expenses = response.data;
+	
+			// Fetch details for each expense in parallel
+			const detailedExpenses = await Promise.all(
+				expenses.map(async (expense) => {
+					const detailsResp = await apiClient.get(`/api/expenses/${expense.id}/details`);
+					return {
+						...expense,
+						payers: detailsResp.data.payers,
+						shares: detailsResp.data.shares,
+					};
+				})
 			);
-			setExpenses(response.data);
+	
+			setExpenses(detailedExpenses);
 		} catch (err) {
 			setError('Failed to load expenses');
 			console.error('Error fetching expenses:', err);
@@ -94,6 +115,7 @@ const GroupDetails = () => {
 			setNewMemberEmail('');
 			setShowAddMember(false);
 			fetchGroupMembers(); // Refresh members list
+			fetchSummary(); // Refresh the summary
 		} catch (err) {
 			setAddMemberError(
 				err.response?.data?.detail || 'Failed to add member'
@@ -102,18 +124,44 @@ const GroupDetails = () => {
 		}
 	};
 
-	const handleRemoveMember = async (userId) => {
-		if (!window.confirm('Are you sure you want to remove this member?')) {
-			return;
-		}
-
+	const fetchSummary = async () => {
+		setSummaryLoading(true);
 		try {
-			await apiClient.delete(`/api/groups/${groupId}/members/${userId}`);
-			setSuccess('Member removed successfully');
+			const response = await apiClient.get(
+				`/api/groups/${groupId}/summary`
+			);
+			setSummary(response.data);
+		} catch (err) {
+			console.error('Error fetching group summary:', err);
+			// You can set a specific error for the summary if you want
+		} finally {
+			setSummaryLoading(false);
+		}
+	};
+
+	const handleRemoveMember = (member) => {
+		setMemberToRemove(member);
+		setShowRemoveMemberConfirm(true);
+	};
+
+	const confirmRemoveMember = async () => {
+		if (!memberToRemove) return;
+
+		setIsRemovingMember(true);
+		try {
+			await apiClient.delete(
+				`/api/groups/${groupId}/members/${memberToRemove.id}`
+			);
+			setSuccess(`Member ${memberToRemove.email} removed successfully`);
 			fetchGroupMembers(); // Refresh members list
+			fetchSummary(); // Refresh the summary
 		} catch (err) {
 			setError('Failed to remove member');
 			console.error('Error removing member:', err);
+		} finally {
+			setIsRemovingMember(false);
+			setShowRemoveMemberConfirm(false);
+			setMemberToRemove(null);
 		}
 	};
 
@@ -232,6 +280,7 @@ const GroupDetails = () => {
 			});
 			setError('');
 			fetchGroupExpenses();
+			fetchSummary(); // Refresh the summary
 		} catch (err) {
 			setError('Failed to add expense');
 			console.error('Error adding expense:', err);
@@ -413,7 +462,7 @@ const GroupDetails = () => {
 		);
 	};
 
-	// Add this function to reset the form
+	// reset the expense form
 	const resetExpenseForm = () => {
 		setNewExpense({
 			description: '',
@@ -426,7 +475,7 @@ const GroupDetails = () => {
 		setError('');
 	};
 
-	// Add this function to reset the member form
+	// reset the member form
 	const resetMemberForm = () => {
 		setNewMemberEmail('');
 		setError('');
@@ -503,6 +552,7 @@ const GroupDetails = () => {
 			setEditingExpense(null);
 			setError('');
 			fetchGroupExpenses();
+			fetchSummary(); // Refresh the summary
 		} catch (err) {
 			setError('Failed to update expense');
 			console.error('Error updating expense:', err);
@@ -521,6 +571,7 @@ const GroupDetails = () => {
 			await apiClient.delete(`/api/expenses/${expenseToDelete}`);
 			setSuccess('Expense deleted successfully');
 			fetchGroupExpenses();
+			fetchSummary(); // Refresh the summary
 		} catch (err) {
 			setError('Failed to delete expense');
 			console.error('Error deleting expense:', err);
@@ -637,6 +688,30 @@ const GroupDetails = () => {
 												expense.created_at
 											).toLocaleDateString()}
 										</p>
+										{/* Transaction Preview */}
+										<div className="mt-2 text-sm text-gray-700">
+											<span className="font-semibold">Paid by: </span>
+											{/* {console.log('Rendering payers for expense:', expense.payers)} */}
+											{expense.payers && expense.payers.length > 0 ? (
+												
+												expense.payers.map((payer, idx) => {
+													// console.log('groupMembers:', groupMembers);
+													// console.log('payer:', payer);
+
+													// Find the user name/email from groupMembers
+													const user = groupMembers.find(u => u.id === payer.user_id);
+													
+													return (
+														<span key={payer.user_id}>
+															{user ? user.name : 'Unknown'} (${payer.paid_amount.toFixed(2)})
+															{idx < expense.payers.length - 1 ? ', ' : ''}
+														</span>
+													);
+												})
+											) : (
+												<span>Unknown</span>
+											)}
+										</div>
 									</div>
 									<div className='flex items-center space-x-2'>
 										<span className='text-lg font-semibold text-green-600'>
@@ -743,6 +818,93 @@ const GroupDetails = () => {
 						</div>
 					</div>
 
+					{/* Summary Section */}
+					<div className='bg-white rounded-lg shadow-md p-6'>
+						<h2 className='text-xl font-semibold mb-4'>Summary</h2>
+						{summaryLoading ? (
+							<p className='text-gray-500'>
+								Calculating balances...
+							</p>
+						) : summary.length > 0 ? (
+							<ul className='space-y-3'>
+								{summary.map((debt, index) => {
+									const isYouOwe =
+										debt.from_user.id === auth.user.id;
+									const isYouReceive =
+										debt.to_user.id === auth.user.id;
+									const fromName = isYouOwe ? (
+										<span className='font-bold text-blue-600'>
+											You
+										</span>
+									) : (
+										<span className='font-bold'>
+											{debt.from_user.name}
+										</span>
+									);
+									const toName = isYouReceive ? (
+										<span className='font-bold text-blue-600'>
+											You
+										</span>
+									) : (
+										<span className='font-bold'>
+											{debt.to_user.name}
+										</span>
+									);
+
+									return (
+										<li
+											key={index}
+											className='flex items-center text-gray-700'
+										>
+											<span
+												className={
+													isYouOwe
+														? 'text-red-600'
+														: isYouReceive
+														? 'text-green-600'
+														: ''
+												}
+											>
+												{fromName} owes {toName}
+											</span>
+											<svg
+												xmlns='http://www.w3.org/2000/svg'
+												className='h-4 w-4 mx-2 text-gray-400'
+												fill='none'
+												viewBox='0 0 24 24'
+												stroke='currentColor'
+											>
+												<path
+													strokeLinecap='round'
+													strokeLinejoin='round'
+													strokeWidth={2}
+													d='M17 8l4 4m0 0l-4 4m4-4H3'
+												/>
+											</svg>
+											<span className='ml-2 font-bold text-gray-800'>
+												${debt.amount.toFixed(2)}
+											</span>
+											{isYouOwe && (
+												<span className='ml-2 text-xs text-red-500 font-semibold'>
+													(You have to pay)
+												</span>
+											)}
+											{isYouReceive && (
+												<span className='ml-2 text-xs text-green-500 font-semibold'>
+													(You will receive)
+												</span>
+											)}
+										</li>
+									);
+								})}
+							</ul>
+						) : (
+							<p className='text-gray-500 text-center py-4'>
+								✅ Everyone is settled up!
+							</p>
+						)}
+					</div>
+
 					{/* Members Section */}
 					<div className='bg-white rounded-lg shadow-md p-6'>
 						<div className='flex justify-between items-center mb-4'>
@@ -794,9 +956,7 @@ const GroupDetails = () => {
 										member.id !== auth?.user?.id && (
 											<button
 												onClick={() =>
-													handleRemoveMember(
-														member.id
-													)
+													handleRemoveMember(member)
 												}
 												className='text-red-500 hover:text-red-700 text-sm'
 											>
@@ -1516,15 +1676,7 @@ const GroupDetails = () => {
 															payers: editingExpense.payers.map(
 																(p, i) =>
 																	i === index
-																		? {
-																				...p,
-																				user_id:
-																					e
-																						.target
-																						.value,
-																		  }
-																		: p
-															),
+																		? {...p, user_id: e.target.value,} : p),
 														})
 													}
 													className='flex-1 p-2 border border-gray-300 rounded'
@@ -2000,6 +2152,21 @@ const GroupDetails = () => {
 					</div>
 				</div>
 			)}
+
+			{/* Remove Member Confirmation Modal */}
+			<ConfirmationModal
+				isOpen={showRemoveMemberConfirm}
+				onClose={() => setShowRemoveMemberConfirm(false)}
+				onConfirm={confirmRemoveMember}
+				title='Remove Member'
+				message={`Are you sure you want to remove ${memberToRemove?.email} from the group?`}
+				confirmText='Remove'
+				cancelText='Cancel'
+				confirmColor='red'
+				icon='delete'
+				isLoading={isRemovingMember}
+				loadingText='Removing...'
+			/>
 		</div>
 	);
 };
