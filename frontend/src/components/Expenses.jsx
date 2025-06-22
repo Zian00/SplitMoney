@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 import ConfirmationModal from './ConfirmationModal';
+import EditExpenseModal from './EditExpenseModal';
 
 const Expenses = () => {
     const { auth } = useAuth();
@@ -11,6 +13,7 @@ const Expenses = () => {
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const [filterGroup, setFilterGroup] = useState('all');
     const [sortBy, setSortBy] = useState('date'); // 'date', 'amount', 'group'
     const [sortOrder, setSortOrder] = useState('desc'); // 'asc', 'desc'
@@ -18,6 +21,7 @@ const Expenses = () => {
     const [showEditExpense, setShowEditExpense] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [expenseToDelete, setExpenseToDelete] = useState(null);
+	const [groupMembersForEdit, setGroupMembersForEdit] = useState([]);
 
     useEffect(() => {
         fetchExpenses();
@@ -30,6 +34,7 @@ const Expenses = () => {
             setExpenses(response.data);
         } catch (err) {
             setError('Failed to load expenses');
+            toast.error('Failed to load expenses');
             console.error('Error fetching expenses:', err);
         } finally {
             setLoading(false);
@@ -123,7 +128,7 @@ const Expenses = () => {
         });
     };
 
-    // Add this function to reset all filters
+    // Reset all filters
     const resetFilters = () => {
         setFilterGroup('all');
         setSortBy('date');
@@ -132,11 +137,16 @@ const Expenses = () => {
 
     const handleEditExpense = async (expenseId) => {
         try {
+            setError('');
             const response = await apiClient.get(`/api/expenses/${expenseId}/details`);
             const expenseData = response.data;
             
+            const membersResponse = await apiClient.get(`/api/groups/${expenseData.expense.group_id}/members`);
+			setGroupMembersForEdit(membersResponse.data.members);
+
             setEditingExpense({
                 id: expenseData.expense.id,
+                group_id: expenseData.expense.group_id,
                 description: expenseData.expense.description,
                 total_amount: expenseData.expense.total_amount.toString(),
                 payers: expenseData.payers.map(payer => ({
@@ -151,16 +161,52 @@ const Expenses = () => {
             setShowEditExpense(true);
         } catch (err) {
             setError('Failed to load expense details');
+            toast.error('Failed to load expense details');
             console.error('Error loading expense:', err);
         }
     };
 
+	const validateExpense = (expense) => {
+		if (!expense) return ['No expense data to validate.'];
+		const totalPaid = expense.payers.reduce(
+			(sum, payer) => sum + parseFloat(payer.paid_amount || 0),
+			0
+		);
+		const totalShares = expense.shares.reduce(
+			(sum, share) => sum + parseFloat(share.share_amount || 0),
+			0
+		);
+		const totalAmount = parseFloat(expense.total_amount || 0);
+
+		const errors = [];
+		const tolerance = 0.001; 
+
+		if (Math.abs(totalPaid - totalAmount) > tolerance) {
+			errors.push(
+				`Total paid ($${totalPaid.toFixed(
+					2
+				)}) must equal total amount ($${totalAmount.toFixed(2)})`
+			);
+		}
+
+		if (Math.abs(totalShares - totalAmount) > tolerance) {
+			errors.push(
+				`Total shares ($${totalShares.toFixed(
+					2
+				)}) must equal total amount ($${totalAmount.toFixed(2)})`
+			);
+		}
+
+		return errors;
+	};
+
     const handleUpdateExpense = async (e) => {
         e.preventDefault();
         
-        const validationErrors = validateExpense();
+        const validationErrors = validateExpense(editingExpense);
         if (validationErrors.length > 0) {
             setError(validationErrors.join('. '));
+            toast.error(validationErrors.join('. '));
             return;
         }
 
@@ -182,9 +228,12 @@ const Expenses = () => {
             setShowEditExpense(false);
             setEditingExpense(null);
             setError('');
+            setSuccess('Expense updated successfully');
+            toast.success('Expense updated successfully');
             fetchExpenses();
         } catch (err) {
             setError('Failed to update expense');
+            toast.error('Failed to update expense');
             console.error('Error updating expense:', err);
         }
     };
@@ -197,10 +246,13 @@ const Expenses = () => {
     const confirmDeleteExpense = async () => {
         try {
             await apiClient.delete(`/api/expenses/${expenseToDelete}`);
-            setError('Expense deleted successfully');
+            setError('');
+            setSuccess('Expense deleted successfully');
+            toast.success('Expense deleted successfully');
             fetchExpenses();
         } catch (err) {
             setError('Failed to delete expense');
+            toast.error('Failed to delete expense');
             console.error('Error deleting expense:', err);
         } finally {
             setShowDeleteConfirm(false);
@@ -225,12 +277,6 @@ const Expenses = () => {
                 <h1 className="text-3xl font-bold text-gray-800">Expense Overview</h1>
                 <p className="text-gray-600 mt-2">Track and analyze all your expenses across groups</p>
             </div>
-
-            {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                    {error}
-                </div>
-            )}
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -466,36 +512,21 @@ const Expenses = () => {
                 )}
             </div>
 
-            {showEditExpense && editingExpense && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-xl font-semibold mb-4">Edit Expense</h2>
-                        <form onSubmit={handleUpdateExpense}>
-                            {/* Same form fields as Add Expense Modal, but use editingExpense instead of newExpense */}
-                            {/* ... copy the form content from Add Expense Modal and replace newExpense with editingExpense ... */}
-                            
-                            <div className="flex justify-end space-x-3 mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowEditExpense(false);
-                                        setEditingExpense(null);
-                                    }}
-                                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-                                >
-                                    Update Expense
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <EditExpenseModal
+                isOpen={showEditExpense}
+                onClose={() => {
+                    setShowEditExpense(false);
+                    setEditingExpense(null);
+                    setError('');
+                }}
+                onUpdate={handleUpdateExpense}
+                expense={editingExpense}
+                setExpense={setEditingExpense}
+                groupMembers={groupMembersForEdit}
+                error={error}
+                title="Edit Expense"
+                submitText="Update Expense"
+            />
 
             <ConfirmationModal
                 isOpen={showDeleteConfirm}
@@ -515,4 +546,4 @@ const Expenses = () => {
     );
 };
 
-export default Expenses; 
+export default Expenses;
