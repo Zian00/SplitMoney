@@ -7,7 +7,6 @@ const EditExpenseModal = ({
 	expense,
 	setExpense,
 	groupMembers,
-	error,
 	title,
 	submitText,
 }) => {

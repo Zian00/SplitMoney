@@ -14,8 +14,6 @@ const GroupDetails = () => {
 	const [expenses, setExpenses] = useState([]);
 	const [groupMembers, setGroupMembers] = useState([]);
 	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState('');
-	const [success, setSuccess] = useState('');
 	const [showAddExpense, setShowAddExpense] = useState(false);
 	const [showAddMember, setShowAddMember] = useState(false);
 	const [newMemberEmail, setNewMemberEmail] = useState('');
@@ -25,8 +23,6 @@ const GroupDetails = () => {
 		payers: [{ user_id: auth?.user?.id || '', paid_amount: '' }],
 		shares: [{ user_id: auth?.user?.id || '', share_amount: '' }],
 	});
-	const [splitMode, setSplitMode] = useState('equal');
-	const [autoCalculateShares, setAutoCalculateShares] = useState(true);
 	const [editingExpense, setEditingExpense] = useState(null);
 	const [showEditExpense, setShowEditExpense] = useState(false);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -35,15 +31,11 @@ const GroupDetails = () => {
 	const [editGroupMode, setEditGroupMode] = useState(false);
 	const [newGroupName, setNewGroupName] = useState('');
 	const [addMemberError, setAddMemberError] = useState('');
-
-	const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] =
-		useState(false);
+	const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] = useState(false);
 	const [memberToRemove, setMemberToRemove] = useState(null);
 	const [isRemovingMember, setIsRemovingMember] = useState(false);
-
 	const [summary, setSummary] = useState([]);
 	const [summaryLoading, setSummaryLoading] = useState(true);
-
 	const isCreator = auth?.user?.id === group?.created_by;
 
 	useEffect(() => {
@@ -58,7 +50,6 @@ const GroupDetails = () => {
 			const response = await apiClient.get(`/api/groups/${groupId}`);
 			setGroup(response.data);
 		} catch (err) {
-			setError('Failed to load group details');
 			toast.error('Failed to load group details');
 			console.error('Error fetching group:', err);
 		}
@@ -83,7 +74,6 @@ const GroupDetails = () => {
 	
 			setExpenses(detailedExpenses);
 		} catch (err) {
-			setError('Failed to load expenses');
 			toast.error('Failed to load expenses');
 			console.error('Error fetching expenses:', err);
 		} finally {
@@ -105,7 +95,6 @@ const GroupDetails = () => {
 	const handleAddMember = async (e) => {
 		e.preventDefault();
 		setAddMemberError('');
-		setSuccess('');
 
 		try {
 			const response = await apiClient.post(
@@ -115,7 +104,6 @@ const GroupDetails = () => {
 				}
 			);
 
-			setSuccess(response.data.message);
 			toast.success(response.data.message);
 			setNewMemberEmail('');
 			setShowAddMember(false);
@@ -158,12 +146,10 @@ const GroupDetails = () => {
 			await apiClient.delete(
 				`/api/groups/${groupId}/members/${memberToRemove.id}`
 			);
-			setSuccess(`Member ${memberToRemove.email} removed successfully`);
 			toast.success(`Member ${memberToRemove.email} removed successfully`);
 			fetchGroupMembers(); // Refresh members list
 			fetchSummary(); // Refresh the summary
 		} catch (err) {
-			setError('Failed to remove member');
 			toast.error('Failed to remove member');
 			console.error('Error removing member:', err);
 		} finally {
@@ -256,7 +242,6 @@ const GroupDetails = () => {
 
 		const validationErrors = validateExpense(newExpense);
 		if (validationErrors.length > 0) {
-			setError(validationErrors.join('. '));
 			toast.error(validationErrors.join('. '));
 			return;
 		}
@@ -286,190 +271,15 @@ const GroupDetails = () => {
 				payers: [{ user_id: auth?.user?.id || '', paid_amount: '' }],
 				shares: [{ user_id: auth?.user?.id || '', share_amount: '' }],
 			});
-			setError('');
+			
 			toast.success('Expense added successfully');
 			fetchGroupExpenses();
 			fetchSummary(); // Refresh the summary
 		} catch (err) {
-			setError('Failed to add expense');
+			
 			toast.error('Failed to add expense');
 			console.error('Error adding expense:', err);
 		}
-	};
-
-	const calculateTotals = () => {
-		const totalPaid = newExpense.payers.reduce(
-			(sum, payer) => sum + parseFloat(payer.paid_amount || 0),
-			0
-		);
-		const totalShares = newExpense.shares.reduce(
-			(sum, share) => sum + parseFloat(share.share_amount || 0),
-			0
-		);
-		const totalAmount = parseFloat(newExpense.total_amount || 0);
-
-		return { totalPaid, totalShares, totalAmount };
-	};
-
-	// Add this function to handle precision issues
-	const calculateEqualShares = (totalAmount, memberCount) => {
-		const baseShare = totalAmount / memberCount;
-		const shares = [];
-
-		// Calculate initial shares (all rounded down)
-		for (let i = 0; i < memberCount; i++) {
-			shares.push(Math.floor(baseShare * 100) / 100);
-		}
-
-		// Calculate total rounded down
-		const totalRounded = shares.reduce((sum, share) => sum + share, 0);
-		const remainder = Math.round((totalAmount - totalRounded) * 100); // Convert to cents
-
-		// Distribute the remainder (in cents) one by one
-		for (let i = 0; i < remainder; i++) {
-			shares[i] = Math.round((shares[i] + 0.01) * 100) / 100;
-		}
-
-		return shares;
-	};
-
-	// Update the calculateSharesFromPayers function
-	const calculateSharesFromPayers = () => {
-		if (!autoCalculateShares || splitMode === 'custom') return;
-
-		const totalAmount = parseFloat(newExpense.total_amount || 0);
-		if (totalAmount <= 0) return;
-
-		const validPayers = newExpense.payers.filter(
-			(payer) => payer.user_id && payer.paid_amount
-		);
-		if (validPayers.length === 0) return;
-
-		let newShares = [];
-
-		if (splitMode === 'equal') {
-			// Use the precision-safe equal split
-			const equalShares = calculateEqualShares(
-				totalAmount,
-				groupMembers.length
-			);
-
-			newShares = groupMembers.map((member, index) => ({
-				user_id: member.id,
-				share_amount: equalShares[index].toFixed(2),
-			}));
-		} else if (splitMode === 'percentage') {
-			// Proportional split based on who paid
-			const totalPaid = validPayers.reduce(
-				(sum, payer) => sum + parseFloat(payer.paid_amount),
-				0
-			);
-
-			// Calculate proportional shares with precision handling
-			const proportionalShares = validPayers.map((payer) => {
-				const percentage = parseFloat(payer.paid_amount) / totalPaid;
-				const share = totalAmount * percentage;
-				return Math.round(share * 100) / 100; // Round to 2 decimal places
-			});
-
-			// Handle any remaining precision issues
-			const totalCalculated = proportionalShares.reduce(
-				(sum, share) => sum + share,
-				0
-			);
-			const difference = totalAmount - totalCalculated;
-
-			if (Math.abs(difference) > 0.001) {
-				proportionalShares[0] =
-					Math.round((proportionalShares[0] + difference) * 100) /
-					100;
-			}
-
-			newShares = validPayers.map((payer, index) => ({
-				user_id: payer.user_id,
-				share_amount: proportionalShares[index].toFixed(2),
-			}));
-		}
-
-		setNewExpense({
-			...newExpense,
-			shares: newShares,
-		});
-	};
-
-	useEffect(() => {
-		if (autoCalculateShares) {
-			calculateSharesFromPayers();
-		}
-	}, [
-		newExpense.payers,
-		newExpense.total_amount,
-		splitMode,
-		autoCalculateShares,
-	]);
-
-	const calculateRemainingAmount = () => {
-		const totalAmount = parseFloat(newExpense.total_amount || 0);
-		const totalPaid = newExpense.payers.reduce(
-			(sum, payer) => sum + parseFloat(payer.paid_amount || 0),
-			0
-		);
-		const totalShares = newExpense.shares.reduce(
-			(sum, share) => sum + parseFloat(share.share_amount || 0),
-			0
-		);
-
-		return {
-			totalAmount,
-			totalPaid,
-			totalShares,
-			remainingPaid: totalAmount - totalPaid,
-			remainingShares: totalAmount - totalShares,
-		};
-	};
-
-	const autoBalanceShares = () => {
-		const totalAmount = parseFloat(newExpense.total_amount || 0);
-		const currentTotal = newExpense.shares.reduce(
-			(sum, share) => sum + parseFloat(share.share_amount || 0),
-			0
-		);
-		const remaining = totalAmount - currentTotal;
-
-		if (remaining > 0) {
-			// Add remaining amount to the first share with 0 amount
-			const firstEmptyShare = newExpense.shares.find(
-				(share) =>
-					!share.share_amount || parseFloat(share.share_amount) === 0
-			);
-			if (firstEmptyShare) {
-				const shareIndex = newExpense.shares.indexOf(firstEmptyShare);
-				updateShare(shareIndex, 'share_amount', remaining.toFixed(2));
-			}
-		}
-	};
-
-	// Replace the existing getAvailableUsers function with this:
-	const getAvailableUsersForPayer = (currentIndex) => {
-		const selectedUserIds = newExpense.payers
-			.map((payer, i) => (i !== currentIndex ? payer.user_id : null))
-			.filter((id) => id && id !== '')
-			.map((id) => String(id)); // Convert to string for consistent comparison
-
-		return groupMembers.filter(
-			(member) => !selectedUserIds.includes(String(member.id))
-		);
-	};
-
-	const getAvailableUsersForShare = (currentIndex) => {
-		const selectedUserIds = newExpense.shares
-			.map((share, i) => (i !== currentIndex ? share.user_id : null))
-			.filter((id) => id && id !== '')
-			.map((id) => String(id)); // Convert to string for consistent comparison
-
-		return groupMembers.filter(
-			(member) => !selectedUserIds.includes(String(member.id))
-		);
 	};
 
 	// reset the expense form
@@ -480,28 +290,12 @@ const GroupDetails = () => {
 			payers: [{ user_id: auth?.user?.id || '', paid_amount: '' }],
 			shares: [{ user_id: auth?.user?.id || '', share_amount: '' }],
 		});
-		setSplitMode('equal');
-		setAutoCalculateShares(true);
-		setError('');
 	};
 
 	// reset the member form
 	const resetMemberForm = () => {
 		setNewMemberEmail('');
-		setError('');
-		setSuccess('');
 		setAddMemberError('');
-	};
-
-	// Update the modal close logic
-	const closeExpenseModal = () => {
-		resetExpenseForm();
-		setShowAddExpense(false);
-	};
-
-	const closeMemberModal = () => {
-		resetMemberForm();
-		setShowAddMember(false);
 	};
 
 	const handleEditExpense = async (expenseId) => {
@@ -526,7 +320,7 @@ const GroupDetails = () => {
 			});
 			setShowEditExpense(true);
 		} catch (err) {
-			setError('Failed to load expense details');
+			
 			console.error('Error loading expense:', err);
 		}
 	};
@@ -536,7 +330,6 @@ const GroupDetails = () => {
 
 		const validationErrors = validateExpense(editingExpense);
 		if (validationErrors.length > 0) {
-			setError(validationErrors.join('. '));
 			toast.error(validationErrors.join('. '));
 			return;
 		}
@@ -561,13 +354,12 @@ const GroupDetails = () => {
 			);
 			setShowEditExpense(false);
 			setEditingExpense(null);
-			setError('');
-			setSuccess('Expense updated successfully');
+			
 			toast.success('Expense updated successfully');
 			fetchGroupExpenses();
 			fetchSummary(); // Refresh the summary
 		} catch (err) {
-			setError('Failed to update expense');
+			
 			toast.error('Failed to update expense');
 			console.error('Error updating expense:', err);
 		}
@@ -583,12 +375,12 @@ const GroupDetails = () => {
 		try {
 			// expenseToDelete contains the ID we stored earlier
 			await apiClient.delete(`/api/expenses/${expenseToDelete}`);
-			setSuccess('Expense deleted successfully');
+			
 			toast.success('Expense deleted successfully');
 			fetchGroupExpenses();
 			fetchSummary(); // Refresh the summary
 		} catch (err) {
-			setError('Failed to delete expense');
+			
 			toast.error('Failed to delete expense');
 			console.error('Error deleting expense:', err);
 		} finally {
@@ -610,11 +402,11 @@ const GroupDetails = () => {
 				name: newGroupName,
 			});
 			setEditGroupMode(false);
-			setSuccess('Group name updated!');
+			
 			toast.success('Group name updated!');
 			fetchGroupDetails();
 		} catch (err) {
-			setError('Failed to update group name');
+			
 			toast.error('Failed to update group name');
 		}
 	};
@@ -628,7 +420,7 @@ const GroupDetails = () => {
 			navigate('/groups');
 			toast.success('Group deleted successfully');
 		} catch (err) {
-			setError('Failed to delete group');
+		
 			toast.error('Failed to delete group');
 		} finally {
 			setIsDeleting(false);
@@ -655,8 +447,6 @@ const GroupDetails = () => {
 		);
 	}
 
-	const { totalPaid, totalShares, totalAmount } = calculateTotals();
-
 	return (
 		<div className='container mx-auto px-4 py-8'>
 			<div className='mb-8'>
@@ -665,8 +455,6 @@ const GroupDetails = () => {
 				</h1>
 				<p className='text-gray-600 mt-2'>Group Details</p>
 			</div>
-
-	
 
 			<div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
 				{/* Expenses Section */}
@@ -1044,6 +832,7 @@ const GroupDetails = () => {
 				</div>
 			)}
 
+			{/* Add new expense */}
 			<EditExpenseModal
 				isOpen={showAddExpense}
 				onClose={() => {
@@ -1054,23 +843,22 @@ const GroupDetails = () => {
 				expense={newExpense}
 				setExpense={setNewExpense}
 				groupMembers={groupMembers}
-				error={error}
 				title='Add New Expense'
 				submitText='Add Expense'
 			/>
-
+			
+			{/* Edit existing expense */}
 			<EditExpenseModal
 				isOpen={showEditExpense}
 				onClose={() => {
-					setShowEditExpense(false);
-					setEditingExpense(null);
-					setError('');
+										setShowEditExpense(false);
+										setEditingExpense(null);
+					
 				}}
 				onUpdate={handleUpdateExpense}
 				expense={editingExpense}
 				setExpense={setEditingExpense}
 				groupMembers={groupMembers}
-				error={error}
 				title='Edit Expense'
 				submitText='Update Expense'
 			/>
