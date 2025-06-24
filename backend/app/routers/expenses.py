@@ -2,23 +2,46 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select, delete
 from typing import List
 from app.database import get_session
-from app.models import Expense, ExpensePayer, ExpenseShare, Group
+from app.deps import get_current_user
+from app.models import Expense, ExpensePayer, ExpenseShare, Group, Membership, User
 
 router = APIRouter()
 
-# Get all expenses
+# Get all expenses for the current user across all their groups
 @router.get("/expenses", response_model=List[Expense])
-async def get_expenses(session: Session = Depends(get_session)):
-    statement = select(Expense)
+async def get_expenses(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    # Step 1: Get all group IDs the user is a member of
+    user_group_ids = session.exec(
+        select(Membership.group_id).where(Membership.user_id == current_user.id)
+    ).all()
+
+    if not user_group_ids:
+        return [] # User is not in any groups, so they have no expenses
+
+    # Step 2: Fetch all expenses that belong to those groups
+    statement = select(Expense).where(Expense.group_id.in_(user_group_ids))
     expenses = session.exec(statement).all()
     return expenses
 
 # Get expenses for a specific group
 @router.get("/groups/{group_id}/expenses", response_model=List[Expense])
-async def get_group_expenses(group_id: int, session: Session = Depends(get_session)):
-    group = session.get(Group, group_id)
-    if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
+async def get_group_expenses(
+    group_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    # Security check: ensure user is a member of the group they're requesting
+    membership = session.exec(
+        select(Membership).where(
+            Membership.group_id == group_id,
+            Membership.user_id == current_user.id
+        )
+    ).first()
+    if not membership:
+        raise HTTPException(status_code=403, detail="You are not a member of this group")
     
     statement = select(Expense).where(Expense.group_id == group_id)
     expenses = session.exec(statement).all()

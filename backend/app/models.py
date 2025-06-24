@@ -1,6 +1,7 @@
 from typing import Optional, List
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
+from sqlalchemy import Column, TIMESTAMP
 
 
 class User(SQLModel, table=True):
@@ -8,9 +9,12 @@ class User(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(index=True, unique=True, nullable=False)
-    name: str = Field(nullable=False) 
+    name: str = Field(nullable=False)
     password_hash: str = Field(nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(TIMESTAMP(timezone=True), nullable=False),
+    )
 
     # Groups the user has created.
     groups_created: List["Group"] = Relationship(back_populates="creator")
@@ -30,7 +34,10 @@ class Group(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(nullable=False)
     created_by: int = Field(foreign_key="users.id", nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(TIMESTAMP(timezone=True), nullable=False),
+    )
 
     # The user who created the group.
     creator: User = Relationship(back_populates="groups_created")
@@ -65,7 +72,10 @@ class Expense(SQLModel, table=True):
     group_id: int = Field(foreign_key="groups.id", nullable=False)
     description: Optional[str] = Field(default=None)
     total_amount: float = Field(nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(TIMESTAMP(timezone=True), nullable=False),
+    )
 
     # The group where the expense was made.
     group: Group = Relationship(back_populates="expenses")
@@ -108,3 +118,22 @@ class ExpenseShare(SQLModel, table=True):
 class UserCreate(SQLModel):
     email: str
     password: str
+
+
+class GroupInvitation(SQLModel, table=True):
+    __tablename__ = "group_invitations"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    group_id: int = Field(foreign_key="groups.id", nullable=False)
+    invitee_email: str = Field(index=True, nullable=False)
+    token: str = Field(unique=True, index=True, nullable=False)
+    expires_at: datetime = Field(
+        sa_column=Column(TIMESTAMP(timezone=True), nullable=False)
+    )
+    status: str = Field(default="pending", nullable=False)  # e.g., pending, accepted, expired
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(TIMESTAMP(timezone=True), nullable=False),
+    )
+
+    group: Group = Relationship() # We can define the back_populates if needed

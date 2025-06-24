@@ -15,8 +15,6 @@ const GroupDetails = () => {
 	const [groupMembers, setGroupMembers] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [showAddExpense, setShowAddExpense] = useState(false);
-	const [showAddMember, setShowAddMember] = useState(false);
-	const [newMemberEmail, setNewMemberEmail] = useState('');
 	const [newExpense, setNewExpense] = useState({
 		description: '',
 		total_amount: '',
@@ -30,13 +28,15 @@ const GroupDetails = () => {
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [editGroupMode, setEditGroupMode] = useState(false);
 	const [newGroupName, setNewGroupName] = useState('');
-	const [addMemberError, setAddMemberError] = useState('');
 	const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] = useState(false);
 	const [memberToRemove, setMemberToRemove] = useState(null);
 	const [isRemovingMember, setIsRemovingMember] = useState(false);
 	const [summary, setSummary] = useState([]);
 	const [summaryLoading, setSummaryLoading] = useState(true);
 	const isCreator = auth?.user?.id === group?.created_by;
+	const [inviteEmail, setInviteEmail] = useState('');
+	const [inviteLoading, setInviteLoading] = useState(false);
+	const [inviteError, setInviteError] = useState('');
 
 	useEffect(() => {
 		fetchGroupDetails();
@@ -89,32 +89,6 @@ const GroupDetails = () => {
 			setGroupMembers(response.data.members);
 		} catch (err) {
 			console.error('Error fetching group members:', err);
-		}
-	};
-
-	const handleAddMember = async (e) => {
-		e.preventDefault();
-		setAddMemberError('');
-
-		try {
-			const response = await apiClient.post(
-				`/api/groups/${groupId}/add-member`,
-				{
-					email: newMemberEmail,
-				}
-			);
-
-			toast.success(response.data.message);
-			setNewMemberEmail('');
-			setShowAddMember(false);
-			fetchGroupMembers(); // Refresh members list
-			fetchSummary(); // Refresh the summary
-		} catch (err) {
-			setAddMemberError(
-				err.response?.data?.detail || 'Failed to add member'
-			);
-			toast.error(err.response?.data?.detail || 'Failed to add member');
-			console.error('Error adding member:', err);
 		}
 	};
 
@@ -292,12 +266,6 @@ const GroupDetails = () => {
 		});
 	};
 
-	// reset the member form
-	const resetMemberForm = () => {
-		setNewMemberEmail('');
-		setAddMemberError('');
-	};
-
 	const handleEditExpense = async (expenseId) => {
 		try {
 			const response = await apiClient.get(
@@ -427,6 +395,22 @@ const GroupDetails = () => {
 		}
 	};
 
+	const handleSendInvite = async (e) => {
+		e.preventDefault();
+		setInviteLoading(true);
+		setInviteError('');
+		try {
+			await apiClient.post(`/api/groups/${groupId}/invite`, { email: inviteEmail });
+			toast.success('Invitation sent!');
+			setInviteEmail('');
+		} catch (err) {
+			setInviteError(err.response?.data?.detail || 'Failed to send invite');
+			toast.error(err.response?.data?.detail || 'Failed to send invite');
+		} finally {
+			setInviteLoading(false);
+		}
+	};
+
 	if (loading) {
 		return (
 			<div className='flex items-center justify-center h-screen'>
@@ -457,7 +441,7 @@ const GroupDetails = () => {
 			</div>
 
 			<div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
-				{/* Expenses Section */}
+				{/* Expenses Section (Left Column) */}
 				<div className='lg:col-span-2 bg-white rounded-lg shadow-md p-6'>
 					<div className='flex justify-between items-center mb-4'>
 						<h2 className='text-xl font-semibold'>Expenses</h2>
@@ -486,19 +470,11 @@ const GroupDetails = () => {
 												expense.created_at
 											).toLocaleDateString()}
 										</p>
-										{/* Transaction Preview */}
 										<div className="mt-2 text-sm text-gray-700">
 											<span className="font-semibold">Paid by: </span>
-											{/* {console.log('Rendering payers for expense:', expense.payers)} */}
 											{expense.payers && expense.payers.length > 0 ? (
-												
 												expense.payers.map((payer, idx) => {
-													// console.log('groupMembers:', groupMembers);
-													// console.log('payer:', payer);
-
-													// Find the user name/email from groupMembers
 													const user = groupMembers.find(u => u.id === payer.user_id);
-													
 													return (
 														<span key={payer.user_id}>
 															{user ? user.name : 'Unknown'} (${payer.paid_amount.toFixed(2)})
@@ -513,7 +489,7 @@ const GroupDetails = () => {
 									</div>
 									<div className='flex items-center space-x-2'>
 										<span className='text-lg font-semibold text-green-600'>
-											${expense.total_amount}
+											${expense.total_amount.toFixed(2)}
 										</span>
 										<div className='flex space-x-1'>
 											<button
@@ -576,9 +552,9 @@ const GroupDetails = () => {
 					)}
 				</div>
 
-				{/* Group Info and Members */}
+				{/* Group Info, Members, and Summary (Right Column) */}
 				<div className='space-y-6'>
-					{/* Group Info */}
+					{/* Group Info Card */}
 					<div className='bg-white rounded-lg shadow-md p-6'>
 						<h2 className='text-xl font-semibold mb-4'>
 							Group Information
@@ -616,7 +592,7 @@ const GroupDetails = () => {
 						</div>
 					</div>
 
-					{/* Summary Section */}
+					{/* Summary Card */}
 					<div className='bg-white rounded-lg shadow-md p-6'>
 						<h2 className='text-xl font-semibold mb-4'>Summary</h2>
 						{summaryLoading ? (
@@ -682,16 +658,6 @@ const GroupDetails = () => {
 											<span className='ml-2 font-bold text-gray-800'>
 												${debt.amount.toFixed(2)}
 											</span>
-											{isYouOwe && (
-												<span className='ml-2 text-xs text-red-500 font-semibold'>
-													(You have to pay)
-												</span>
-											)}
-											{isYouReceive && (
-												<span className='ml-2 text-xs text-green-500 font-semibold'>
-													(You will receive)
-												</span>
-											)}
 										</li>
 									);
 								})}
@@ -703,136 +669,96 @@ const GroupDetails = () => {
 						)}
 					</div>
 
-					{/* Members Section */}
+					{/* Members Card */}
 					<div className='bg-white rounded-lg shadow-md p-6'>
-						<div className='flex justify-between items-center mb-4'>
-							<h2 className='text-xl font-semibold'>
-								Members ({groupMembers.length})
-							</h2>
-							{isCreator && (
-								<button
-									onClick={() => setShowAddMember(true)}
-									className='bg-green-500 text-white py-1 px-3 rounded text-sm hover:bg-green-600 transition-colors'
-								>
-									Add Member
-								</button>
-							)}
-						</div>
+						<h2 className='text-xl font-semibold mb-4'>
+							Members ({groupMembers.length})
+						</h2>
 
-						<div className='space-y-2'>
+						{isCreator && (
+							<form onSubmit={handleSendInvite} className='mb-4 flex gap-2 items-center'>
+								<input
+									type='email'
+									value={inviteEmail}
+									onChange={e => setInviteEmail(e.target.value)}
+									placeholder="Invite by email"
+									className='p-2 border border-gray-300 rounded w-full'
+									required
+									disabled={inviteLoading}
+								/>
+								<button
+									type='submit'
+									className='bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50'
+									disabled={inviteLoading || !inviteEmail}
+								>
+									{inviteLoading ? '...' : 'Invite'}
+								</button>
+							</form>
+						)}
+						{inviteError && <div className='text-red-500 text-sm mb-2'>{inviteError}</div>}
+
+						<ul className='space-y-3'>
 							{groupMembers.map((member) => (
-								<div
+								<li
 									key={member.id}
-									className='flex justify-between items-center p-2 bg-gray-50 rounded'
+									className='flex justify-between items-center p-2 rounded hover:bg-gray-50'
 								>
 									<div>
-										<span className='font-medium'>
-											{member.email}
-										</span>
-										{member.id === group.created_by && (
-											<span
-												className='ml-2'
-												title='Group Creator'
-											>
-												<svg
-													xmlns='http://www.w3.org/2000/svg'
-													className='inline-block w-4 h-4 text-yellow-500'
-													fill='currentColor'
-													viewBox='0 0 20 20'
-												>
-													<path d='M2.166 6.5l3.5 7 4.334-8.667L14.334 13.5l3.5-7L20 15.5H0l2.166-9z' />
-												</svg>
-											</span>
-										)}
-										{member.id === auth?.user?.id && (
-											<span className='text-xs text-blue-600 ml-2'>
-												(You)
-											</span>
-										)}
+										<span className='font-medium'>{member.name}</span>
 									</div>
-									{isCreator &&
-										member.id !== auth?.user?.id && (
+									<div className='flex items-center space-x-2'>
+										{member.id === group.created_by && (
+											<span className='text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full'>
+												Creator
+											</span>
+										)}
+										{member.id === auth.user.id && !isCreator && (
+											<span className='text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full'>
+												You
+											</span>
+										)}
+										{isCreator && member.id !== auth.user.id && (
 											<button
-												onClick={() =>
-													handleRemoveMember(member)
-												}
-												className='text-red-500 hover:text-red-700 text-sm'
+												onClick={() => handleRemoveMember(member)}
+												className='text-red-500 hover:text-red-700 text-xs'
+												title='Remove member'
 											>
 												Remove
 											</button>
 										)}
-								</div>
+									</div>
+								</li>
 							))}
-						</div>
-
-						{groupMembers.length === 0 && (
-							<p className='text-gray-500 text-center py-4'>
-								No members yet
-							</p>
-						)}
+						</ul>
 					</div>
+
+					{/* Admin Actions for Creator */}
+					{isCreator && (
+						<div className='bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500'>
+							<h2 className='text-xl font-semibold mb-4'>
+								Admin Actions
+							</h2>
+							<div className='flex space-x-2'>
+								<button
+									onClick={handleEditGroup}
+									className='bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600'
+								>
+									Edit Group
+								</button>
+								<button
+									onClick={handleDeleteGroup}
+									className='bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600'
+									disabled={isDeleting}
+								>
+									{isDeleting ? 'Deleting...' : 'Delete Group'}
+								</button>
+							</div>
+						</div>
+					)}
 				</div>
 			</div>
 
-			{/* Add Member Modal */}
-			{showAddMember && (
-				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-					<div className='bg-white rounded-lg p-6 w-full max-w-md'>
-						<h2 className='text-xl font-semibold mb-4'>
-							Add Member to Group
-						</h2>
-
-						{/* Display the error here */}
-						{addMemberError && (
-							<div className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm'>
-								{addMemberError}
-							</div>
-						)}
-
-						<form onSubmit={handleAddMember}>
-							<div className='mb-4'>
-								<label className='block text-sm font-medium mb-2'>
-									Email Address
-								</label>
-								<input
-									type='email'
-									value={newMemberEmail}
-									onChange={(e) =>
-										setNewMemberEmail(e.target.value)
-									}
-									className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
-									placeholder="Enter user's email"
-									required
-								/>
-								<p className='text-sm text-gray-600 mt-1'>
-									The user must already have an account with
-									this email.
-								</p>
-							</div>
-							<div className='flex justify-end space-x-3'>
-								<button
-									type='button'
-									onClick={() => {
-										resetMemberForm(); // Reset form data
-										setShowAddMember(false); // Close modal
-									}}
-									className='px-4 py-2 text-gray-600 hover:text-gray-800'
-								>
-									Cancel
-								</button>
-								<button
-									type='submit'
-									className='bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600'
-								>
-									Add Member
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			)}
-
-			{/* Add new expense */}
+			{/* Add new expense Modal */}
 			<EditExpenseModal
 				isOpen={showAddExpense}
 				onClose={() => {
@@ -863,7 +789,7 @@ const GroupDetails = () => {
 				submitText='Update Expense'
 			/>
 
-			{/* Confirmation Modal */}
+			{/* Confirmation Modals */}
 			<ConfirmationModal
 				isOpen={showDeleteConfirm}
 				onClose={() => {
@@ -880,24 +806,6 @@ const GroupDetails = () => {
 				isLoading={isDeleting}
 				loadingText='Deleting...'
 			/>
-
-			{isCreator && (
-				<div className='flex space-x-2 mt-4'>
-					<button
-						onClick={handleEditGroup}
-						className='bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600'
-					>
-						Edit Group
-					</button>
-					<button
-						onClick={handleDeleteGroup}
-						className='bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600'
-						disabled={isDeleting}
-					>
-						{isDeleting ? 'Deleting...' : 'Delete Group'}
-					</button>
-				</div>
-			)}
 
 			{editGroupMode && (
 				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
@@ -940,19 +848,16 @@ const GroupDetails = () => {
 				</div>
 			)}
 
-			{/* Remove Member Confirmation Modal */}
 			<ConfirmationModal
 				isOpen={showRemoveMemberConfirm}
 				onClose={() => setShowRemoveMemberConfirm(false)}
 				onConfirm={confirmRemoveMember}
-				title='Remove Member'
-				message={`Are you sure you want to remove ${memberToRemove?.email} from the group?`}
-				confirmText='Remove'
-				cancelText='Cancel'
-				confirmColor='red'
-				icon='delete'
+				message={`Are you sure you want to remove ${memberToRemove?.name} from the group?`}
+				confirmText="Remove"
+				confirmColor="red"
+				icon="delete"
 				isLoading={isRemovingMember}
-				loadingText='Removing...'
+				loadingText="Removing..."
 			/>
 		</div>
 	);

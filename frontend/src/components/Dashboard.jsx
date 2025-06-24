@@ -32,9 +32,7 @@ const Dashboard = () => {
 	const fetchUserGroups = async () => {
 		try {
 			// console.log('Fetching groups for user:', user);
-			const response = await apiClient.get(
-				`/api/users/${user.id}/groups`
-			);
+			const response = await apiClient.get('/api/groups');
 			// console.log('Groups response:', response.data);
 			setGroups(response.data);
 		} catch (err) {

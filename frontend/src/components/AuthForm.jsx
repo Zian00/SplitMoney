@@ -1,19 +1,72 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/apiClient';
 
 const AuthForm = () => {
-	const [mode, setMode] = useState('login');
+	const location = useLocation();
+	const [mode, setMode] = useState(location.state?.defaultMode || 'login');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [error, setError] = useState('');
 	const [message, setMessage] = useState('');
 	const { setAuth } = useAuth();
+	const navigate = useNavigate();
 
 	const toggleMode = () => {
 		setError('');
 		setMessage('');
 		setMode((prev) => (prev === 'login' ? 'register' : 'login'));
+	};
+
+	// Helper to decode JWT payload
+	const parseJwt = (token) => {
+		try {
+			return JSON.parse(atob(token.split('.')[1]));
+		} catch (e) {
+			return {};
+		}
+	};
+
+	const handleLoginFlow = async (loginEmail, loginPassword) => {
+		// Step 1: Get the access token
+		const params = new URLSearchParams();
+		params.append('username', loginEmail);
+		params.append('password', loginPassword);
+		const response = await apiClient.post('/auth/token', params, {
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		});
+
+		// Step 2: Get user data with the new token
+		const token = response.data.access_token;
+		const userResp = await apiClient.get(`/auth/users/${parseJwt(token).sub}`, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+
+		// Step 3: Set auth state
+		const newAuth = { token, user: userResp.data };
+		setAuth(newAuth);
+
+		// Step 4: Check for and handle pending invitation
+		const pendingToken = localStorage.getItem('pending_invite_token');
+		if (pendingToken) {
+			try {
+				toast.info("Accepting your pending invitation...");
+				const res = await apiClient.get(`/api/invites/accept/${pendingToken}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				toast.success("You've successfully joined the group!");
+				localStorage.removeItem('pending_invite_token');
+				navigate(`/groups/${res.data.group_id}`);
+				return true; // Indicate that we handled an invite
+			} catch (inviteErr) {
+				console.log(inviteErr)
+				toast.error(inviteErr.response?.data?.detail || "Failed to accept invitation.");
+				localStorage.removeItem('pending_invite_token');
+			}
+		}
+		return false; // No invite was handled
 	};
 
 	const handleSubmit = async (e) => {
@@ -23,43 +76,21 @@ const AuthForm = () => {
 
 		try {
 			if (mode === 'login') {
-				// Use form data for OAuth2PasswordRequestForm
-				const params = new URLSearchParams();
-				params.append('username', email);
-				params.append('password', password);
-
-				const response = await apiClient.post('/auth/token', params, {
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-				});
-
-				// Optionally, fetch user info after login
-				// When a user logs in, you get a JWT (access_token) from the backend.
-				const userResp = await apiClient.get(`/auth/users/${parseJwt(response.data.access_token).sub}`);
-				setAuth({
-					user: userResp.data,
-					token: response.data.access_token,
-				});
+				await handleLoginFlow(email, password);
 			} else {
+				// Register the user
 				await apiClient.post('/auth/register', { email, password });
-				setMessage('Registration successful! Please log in.');
-				setMode('login');
-				setEmail('');
-				setPassword('');
+				// Automatically log them in after registration
+				const inviteHandled = await handleLoginFlow(email, password);
+				if (!inviteHandled) {
+					toast.success("Registration successful! Logging you in.");
+				}
 			}
 		} catch (err) {
 			console.error('Auth error:', err);
-			setError(err.response?.data?.detail || 'Something went wrong');
+			setError(err.response?.data?.detail || 'An error occurred. Please try again.');
 		}
 	};
-
-	// Helper to decode JWT payload
-	function parseJwt(token) {
-		try {
-			return JSON.parse(atob(token.split('.')[1]));
-		} catch (e) {
-			return {};
-		}
-	}
 
 	return (
 		<div className="flex items-center justify-center h-screen bg-gray-100">

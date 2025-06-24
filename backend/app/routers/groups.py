@@ -1,36 +1,30 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks
 from sqlmodel import Session, select, delete
 from typing import List
 from app.database import get_session
 from app.deps import get_current_user
-from app.models import Group, User, Membership, UserCreate, Expense, ExpensePayer, ExpenseShare # Add Expense models
+from app.models import Group, User, Membership, UserCreate, Expense, ExpensePayer, ExpenseShare, GroupInvitation
 from app.schemas import Debt, UserInfo # Import new schemas
 from sqlalchemy.orm import selectinload
-
+from app.mail_utils import fast_mail
+from fastapi_mail import MessageSchema
+from datetime import datetime, timezone, timedelta
+import secrets
+from pathlib import Path
 router = APIRouter()
 
-# Get all groups
+# Get all groups for the current user
 @router.get("/groups", response_model=List[Group])
-async def get_groups(session: Session = Depends(get_session)):
-    statement = select(Group)
+async def get_groups(
+    session: Session = Depends(get_session), 
+    current_user: User = Depends(get_current_user)
+):
+    # Get groups where the current user is a member
+    statement = select(Group).join(Membership).where(
+        Membership.user_id == current_user.id
+    )
     groups = session.exec(statement).all()
     return groups
-
-
-# Get groups for a specific user
-@router.get("/users/{user_id}/groups", response_model=List[Group])
-async def get_user_groups(user_id: int, session: Session = Depends(get_session)):
-    try:
-        # Get groups where user is a member
-        statement = select(Group).join(Membership).where(
-            Membership.user_id == user_id)
-        groups = session.exec(statement).all()
-        print(f"Found {len(groups)} groups for user {user_id}")  # Debug print
-        return groups
-    except Exception as e:
-        print(f"Error getting user groups: {e}")  # Debug print
-        raise HTTPException(
-            status_code=500, detail="Failed to get user groups")
 
 
 # Create a new group
@@ -63,48 +57,6 @@ async def get_group(group_id: int, session: Session = Depends(get_session)):
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     return group
-
-# Add user to group by email
-@router.post("/groups/{group_id}/add-member")
-async def add_member_by_email(group_id: int, member_data: dict, session: Session = Depends(get_session)):
-    group = session.get(Group, group_id)
-    if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
-
-    # Find user by email
-    user = session.exec(select(User).where(
-        User.email == member_data["email"])).first()
-    if not user:
-        raise HTTPException(
-            status_code=404, detail="User not found")
-
-    # Check if already a member
-    existing_membership = session.exec(
-        select(Membership).where(
-            Membership.user_id == user.id,
-            Membership.group_id == group_id
-        )
-    ).first()
-
-    if existing_membership:
-        raise HTTPException(
-            status_code=400, detail="User is already a member of this group")
-
-    # Add membership
-    membership = Membership(
-        user_id=user.id,
-        group_id=group_id
-    )
-    session.add(membership)
-    session.commit()
-
-    return {
-        "message": f"User {user.email} added to group successfully",
-        "user": {
-            "id": user.id,
-            "email": user.email
-        }
-    }
 
 # Get group members
 @router.get("/groups/{group_id}/members")
@@ -281,3 +233,100 @@ async def get_group_summary(
             )
 
     return response_debts
+
+@router.post("/groups/{group_id}/invite")
+async def invite_user_to_group(
+    group_id: int,
+    background_tasks: BackgroundTasks,
+    data: dict = Body(...),  # expects {"email": "invitee@example.com"}
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    invitee_email = data.get("email")
+    if not invitee_email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    # Check if group exists
+    group = session.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    # This is the important part. By accessing group.creator here, we ensure the relationship is loaded
+    # before the background task runs and the session is closed.
+    creator_name = group.creator.name
+
+    # Generate token and expiration
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=1)
+
+    # Store invitation
+    invitation = GroupInvitation(
+        group_id=group_id,
+        invitee_email=invitee_email,
+        token=token,
+        expires_at=expires_at
+    )
+    session.add(invitation)
+    session.commit()
+
+    # --- Send HTML email in background ---
+    invite_link = f"http://localhost:3000/invite/{token}"
+    
+    # Read the HTML template
+    template_path = Path(__file__).parent.parent / "templates" / "invitation.html"
+    with open(template_path, "r") as f:
+        template_str = f.read()
+    
+    # Populate the template
+    body = template_str.replace("{{ creator_name }}", creator_name)
+    body = body.replace("{{ group_name }}", group.name)
+    body = body.replace("{{ invite_link }}", invite_link)
+
+    message = MessageSchema(
+        subject="You're invited to join a SplitMoney group!",
+        recipients=[invitee_email],
+        body=body,
+        subtype="html"
+    )
+    background_tasks.add_task(fast_mail.send_message, message)
+
+    return {"message": "Invitation sent successfully."}
+
+@router.get("/invites/accept/{token}")
+async def accept_invitation_from_link(
+    token: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    This endpoint is designed to be hit from a browser link (GET request).
+    """
+    invitation = session.exec(
+        select(GroupInvitation).where(GroupInvitation.token == token)
+    ).first()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found or invalid.")
+    if invitation.status != "pending":
+        raise HTTPException(status_code=400, detail="Invitation has already been used.")
+    if invitation.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Invitation has expired.")
+    if current_user.email != invitation.invitee_email:
+        raise HTTPException(status_code=403, detail="This invitation is for a different user.")
+
+    # Add user to group if not already a member
+    existing_membership = session.exec(
+        select(Membership).where(
+            Membership.user_id == current_user.id,
+            Membership.group_id == invitation.group_id
+        )
+    ).first()
+
+    if not existing_membership:
+        membership = Membership(user_id=current_user.id, group_id=invitation.group_id)
+        session.add(membership)
+
+    invitation.status = "accepted"
+    session.add(invitation)
+    session.commit()
+    return {"message": "You have successfully joined the group!", "group_id": invitation.group_id}
