@@ -8,6 +8,7 @@ import Expenses from './components/Expenses';
 import Navigation from './components/Navigation';
 import Profile from './components/Profile';
 import InvitationHandler from './components/InvitationHandler';
+import ExpenseDetails from './components/ExpenseDetails';
 
 const App = () => {
 	const { auth } = useAuth();
@@ -30,6 +31,7 @@ const App = () => {
 							<Route path="/groups" element={<Groups />} />
 							<Route path="/groups/:groupId" element={<GroupDetails />} />
 							<Route path="/expenses" element={<Expenses />} />
+							<Route path="/expenses/:expenseId" element={<ExpenseDetails />} />
 							<Route path="/profile" element={<Profile />} />
 							<Route path="/invite/:token" element={<InvitationHandler />} />
 							<Route path="*" element={<Navigate to="/" replace />} />

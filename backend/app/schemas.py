@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Optional
 from datetime import datetime
+import re
 
 class GroupCreate(BaseModel):
     email: str
@@ -27,3 +28,17 @@ class Debt(BaseModel):
     from_user: UserInfo
     to_user: UserInfo
     amount: float
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+    @field_validator('password')
+    @classmethod
+    def password_strong(cls, v):
+        if (len(v) < 8 or
+            not re.search(r'[A-Z]', v) or
+            not re.search(r'[a-z]', v) or
+            not re.search(r'\d', v)):
+            raise ValueError('Password must be at least 8 characters and include uppercase, lowercase, and a digit.')
+        return v

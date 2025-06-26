@@ -1,22 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/apiClient';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash, faUser, faLock, faEnvelope, faSpinner, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons';
 
 const AuthForm = () => {
 	const location = useLocation();
 	const [mode, setMode] = useState(location.state?.defaultMode || 'login');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
-	const [error, setError] = useState('');
-	const [message, setMessage] = useState('');
+	const [showPassword, setShowPassword] = useState(false);
+	const [isLoading, setIsLoading] = useState(false);
+	const [passwordTouched, setPasswordTouched] = useState(false);
 	const { setAuth } = useAuth();
 	const navigate = useNavigate();
 
+	// Apply background to body when component mounts
+	useEffect(() => {
+		// Apply background styles to body
+		document.body.style.background = 'linear-gradient(to bottom right, #eff6ff, #eef2ff, #faf5ff)';
+		document.body.style.minHeight = '100vh';
+		
+		// Cleanup function to remove styles when component unmounts
+		return () => {
+			document.body.style.background = '';
+			document.body.style.minHeight = '';
+		};
+	}, []);
+
 	const toggleMode = () => {
-		setError('');
-		setMessage('');
+		setPassword('');
+		setPasswordTouched(false);
 		setMode((prev) => (prev === 'login' ? 'register' : 'login'));
 	};
 
@@ -71,8 +87,7 @@ const AuthForm = () => {
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		setError('');
-		setMessage('');
+		setIsLoading(true);
 
 		try {
 			if (mode === 'login') {
@@ -88,62 +103,212 @@ const AuthForm = () => {
 			}
 		} catch (err) {
 			console.error('Auth error:', err);
-			setError(err.response?.data?.detail || 'An error occurred. Please try again.');
+		} finally {
+			setIsLoading(false);
 		}
 	};
 
+	// Password validation checks
+	const passwordChecks = [
+		{
+			label: "At least 8 characters",
+			isValid: password.length >= 8
+		},
+		{
+			label: "One uppercase letter",
+			isValid: /[A-Z]/.test(password)
+		},
+		{
+			label: "One lowercase letter",
+			isValid: /[a-z]/.test(password)
+		},
+		{
+			label: "One digit",
+			isValid: /\d/.test(password)
+		}
+	];
+
+	const allPasswordChecksValid = passwordChecks.every(check => check.isValid);
+
 	return (
-		<div className="flex items-center justify-center h-screen bg-gray-100">
-			<div className="w-full max-w-md bg-white rounded-lg shadow-md p-6">
-				<h2 className="text-2xl font-bold text-center mb-6">
-					{mode === 'login' ? 'Login' : 'Register'}
-				</h2>
-				
-				{error && <p className="text-red-500 mb-4">{error}</p>}
-				{message && <p className="text-green-500 mb-4">{message}</p>}
-				
-				<form onSubmit={handleSubmit} className="space-y-4">
-					<div>
-						<label htmlFor="email" className="block mb-1 font-medium">Email</label>
-						<input
-							id="email"
-							type="email"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							required
-							className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-						/>
+		<div className="min-h-screen flex items-center justify-center p-4">
+			{/* Background decoration */}
+			<div className="fixed inset-0 overflow-hidden pointer-events-none">
+				<div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
+				<div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/20 to-pink-400/20 rounded-full blur-3xl"></div>
+			</div>
+
+			<div className="w-full max-w-md relative z-10">
+				{/* Main Card */}
+				<div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 sm:p-8 lg:p-10">
+					{/* Header */}
+					<div className="text-center mb-6 sm:mb-8">
+						<div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl mb-4 shadow-lg">
+							<FontAwesomeIcon icon={faUser} className="text-white text-xl sm:text-2xl" />
+						</div>
+						<h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+							{mode === 'login' ? 'Welcome Back' : 'Create Account'}
+						</h1>
+						<p className="text-sm sm:text-base text-gray-600 leading-relaxed">
+							{mode === 'login' 
+								? 'Sign in to your account to continue' 
+								: 'Join us and start managing your expenses'
+							}
+						</p>
 					</div>
-					
-					<div>
-						<label htmlFor="password" className="block mb-1 font-medium">Password</label>
-						<input
-							id="password"
-							type="password"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							required
-							className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-						/>
+
+					{/* Form */}
+					<form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+						{/* Email Field */}
+						<div className="space-y-2">
+							<label htmlFor="email" className="block text-sm font-semibold text-gray-700">
+								Email Address
+							</label>
+							<div className="relative">
+								<div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+									<FontAwesomeIcon icon={faEnvelope} className="text-gray-600 text-sm sm:text-base" />
+								</div>
+								<input
+									id="email"
+									type="email"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+									required
+									disabled={isLoading}
+									className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+									placeholder="Enter your email"
+								/>
+							</div>
+						</div>
+
+						{/* Password Field */}
+						<div className="space-y-2">
+							<label htmlFor="password" className="block text-sm font-semibold text-gray-700">
+								Password
+							</label>
+							<div className="relative">
+								<div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+									<FontAwesomeIcon icon={faLock} className="text-gray-600 text-sm sm:text-base" />
+								</div>
+								<input
+									id="password"
+									type={showPassword ? 'text' : 'password'}
+									value={password}
+									onChange={(e) => {
+										setPassword(e.target.value);
+										if (!passwordTouched && e.target.value.length > 0) {
+											setPasswordTouched(true);
+										}
+									}}
+									required
+									disabled={isLoading}
+									className="w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+									placeholder="Enter your password"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowPassword(!showPassword)}
+									disabled={isLoading}
+									className="absolute inset-y-0 right-0 pr-3 sm:pr-4 flex items-center text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+								>
+									<FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} className="text-sm sm:text-base" />
+								</button>
+							</div>
+
+							{/* Password Requirements - Only show in register mode */}
+							{mode === 'register' && passwordTouched && (
+								<div className="mt-3 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+									<p className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Password Requirements:</p>
+									<div className="space-y-1.5 sm:space-y-2">
+										{passwordChecks.map((check, index) => (
+											<div key={index} className="flex items-center space-x-2">
+												<div className={`flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center transition-all duration-200 ${
+													check.isValid 
+														? 'bg-green-100 text-green-600' 
+														: 'bg-red-100 text-red-600'
+												}`}>
+													<FontAwesomeIcon 
+														icon={check.isValid ? faCheck : faTimes} 
+														className="text-xs sm:text-sm"
+													/>
+												</div>
+												<span className={`text-xs sm:text-sm font-medium transition-colors duration-200 ${
+													check.isValid 
+														? 'text-green-700' 
+														: 'text-red-700'
+												}`}>
+													{check.label}
+												</span>
+											</div>
+										))}
+									</div>
+									{password.length > 0 && (
+										<div className="mt-3 pt-3 border-t border-gray-200">
+											<div className="flex items-center space-x-2">
+												<div className={`flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center transition-all duration-200 ${
+													allPasswordChecksValid 
+														? 'bg-green-100 text-green-600' 
+														: 'bg-red-100 text-red-600'
+												}`}>
+													<FontAwesomeIcon 
+														icon={allPasswordChecksValid ? faCheck : faTimes} 
+														className="text-xs sm:text-sm"
+													/>
+												</div>
+												<span className={`text-xs sm:text-sm font-semibold transition-colors duration-200 ${
+													allPasswordChecksValid 
+														? 'text-green-700' 
+														: 'text-red-700'
+												}`}>
+													{allPasswordChecksValid ? 'Password meets all requirements' : 'Password requirements not met'}
+												</span>
+											</div>
+										</div>
+									)}
+								</div>
+							)}
+						</div>
+
+						{/* Submit Button */}
+						<button
+							type="submit"
+							disabled={isLoading || (mode === 'register' && passwordTouched && !allPasswordChecksValid)}
+							className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-lg text-sm sm:text-base"
+						>
+							{isLoading ? (
+								<div className="flex items-center justify-center">
+									<FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
+									{mode === 'login' ? 'Signing In...' : 'Creating Account...'}
+								</div>
+							) : (
+								mode === 'login' ? 'Sign In' : 'Create Account'
+							)}
+						</button>
+					</form>
+
+					{/* Toggle Mode */}
+					<div className="mt-6 sm:mt-8 text-center">
+						<p className="text-sm sm:text-base text-gray-600 mb-2">
+							{mode === 'login' 
+								? "Don't have an account?" 
+								: 'Already have an account?'
+							}
+						</p>
+						<button
+							onClick={toggleMode}
+							disabled={isLoading}
+							className="font-semibold text-blue-600 hover:text-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base underline decoration-2 underline-offset-2 hover:decoration-blue-700"
+						>
+							{mode === 'login' ? 'Create an account' : 'Sign in instead'}
+						</button>
 					</div>
-					
-					<button 
-						type="submit"
-						className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors"
-					>
-						{mode === 'login' ? 'Login' : 'Register'}
-					</button>
-				</form>
-				
-				<div className="mt-4 text-center">
-					<button
-						onClick={toggleMode}
-						className="text-blue-500 hover:underline"
-					>
-						{mode === 'login'
-							? "Don't have an account? Register"
-							: 'Already have an account? Login'}
-					</button>
+				</div>
+
+				{/* Footer */}
+				<div className="text-center mt-6 sm:mt-8">
+					<p className="text-xs sm:text-sm text-gray-500">
+						© {new Date().getFullYear()} SplitMoney. All rights reserved.
+					</p>
 				</div>
 			</div>
 		</div>

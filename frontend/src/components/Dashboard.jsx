@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 
 const Dashboard = () => {
@@ -17,8 +18,16 @@ const Dashboard = () => {
 
 	if (!auth || !auth.user) {
 		return (
-			<div className='flex items-center justify-center h-screen'>
-				<div className='text-xl'>Please log in to view dashboard</div>
+			<div className='min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 flex items-center justify-center px-4'>
+				<div className='text-center bg-white rounded-2xl shadow-xl p-8 max-w-md w-full'>
+					<div className='w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4'>
+						<svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+						</svg>
+					</div>
+					<h2 className='text-2xl font-bold text-gray-800 mb-2'>Access Required</h2>
+					<p className='text-gray-600'>Please log in to view your dashboard</p>
+				</div>
 			</div>
 		);
 	}
@@ -31,9 +40,7 @@ const Dashboard = () => {
 
 	const fetchUserGroups = async () => {
 		try {
-			// console.log('Fetching groups for user:', user);
 			const response = await apiClient.get('/api/groups');
-			// console.log('Groups response:', response.data);
 			setGroups(response.data);
 		} catch (err) {
 			console.error('Error fetching groups:', err);
@@ -53,171 +60,285 @@ const Dashboard = () => {
 			});
 			setNewGroupName('');
 			setShowCreateForm(false);
-			fetchUserGroups(); // Refresh groups list
+			fetchUserGroups();
+			toast.success('Group added!');
 		} catch (err) {
 			setCreateGroupError('Failed to create group');
 		}
 	};
 
-	if (!user) {
+	if (!user || loading) {
 		return (
-			<div className='flex items-center justify-center h-screen'>
-				<div className='text-xl'>Loading user data...</div>
-			</div>
-		);
-	}
-
-	if (loading) {
-		return (
-			<div className='flex items-center justify-center h-screen'>
-				<div className='text-xl'>Loading...</div>
+			<div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 flex items-center justify-center px-4">
+				<div className="text-center">
+					<div className="relative">
+						<div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-100 mx-auto"></div>
+						<div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-500 border-t-transparent absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+					</div>
+					<div className="mt-6 text-lg font-medium text-gray-700">
+						{!user ? 'Loading user data...' : 'Loading dashboard...'}
+					</div>
+					<div className="mt-2 text-sm text-gray-500">Please wait a moment</div>
+				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className='container mx-auto px-4 py-8'>
-			<div className='mb-8'>
-				<h1 className='text-3xl font-bold text-gray-800'>
-					Welcome back, {user.name}!
-				</h1>
-				<p className='text-gray-600 mt-2'>
-					Manage your expense groups and track shared expenses.
-				</p>
-			</div>
-
-			{error && (
-				<div className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>
-					{error}
-				</div>
-			)}
-
-			<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-				{/* Quick Actions */}
-				<div className='bg-white rounded-lg shadow-md p-6'>
-					<h2 className='text-xl font-semibold mb-4'>
-						Quick Actions
-					</h2>
-					<div className='space-y-3'>
-						<button
-							onClick={() => setShowCreateForm(true)}
-							className='w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors'
-						>
-							Create New Group
-						</button>
-						<button
-							onClick={() => navigate('/expenses')}
-							className='w-full bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 transition-colors'
-						>
-							View Expenses
-						</button>
-					</div>
-				</div>
-
-				{/* Your Groups */}
-				<div className='bg-white rounded-lg shadow-md p-6'>
-					<h2 className='text-xl font-semibold mb-4'>Your Groups</h2>
-					{groups.length === 0 ? (
+		<div className='min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50'>
+			{/* Header Section */}
+			<div className='bg-white shadow-sm border-b border-gray-100'>
+				<div className='container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'>
+					<div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
 						<div>
-							<p className='text-gray-500 mb-4'>
-								No groups yet. Create your first group!
+							<h1 className='text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent'>
+								Welcome back, {user.name}! 👋
+							</h1>
+							<p className='text-gray-600 mt-2 text-sm sm:text-base'>
+								Manage your expense groups and track shared expenses effortlessly.
 							</p>
+						</div>
+						<div className='flex flex-col sm:flex-row gap-2 sm:gap-3'>
 							<button
-								onClick={() => navigate('/groups')}
-								className='bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors'
+								onClick={() => setShowCreateForm(true)}
+								className='bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base'
 							>
-								Create Group
+								+ New Group
 							</button>
 						</div>
-					) : (
-						<div className='space-y-3'>
-							{groups.slice(0, 3).map((group) => (
-								<div
-									key={group.id}
-									className='border rounded p-3 hover:bg-gray-50 cursor-pointer'
-									onClick={() =>
-										navigate(`/groups/${group.id}`)
-									}
-								>
-									<h3 className='font-medium'>
-										{group.name}
-									</h3>
-									<p className='text-sm text-gray-600'>
-										Created:{' '}
-										{new Date(
-											group.created_at
-										).toLocaleDateString()}
-									</p>
+					</div>
+				</div>
+			</div>
+
+			<div className='container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'>
+				{error && (
+					<div className='bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center gap-3'>
+						<svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<span className="text-sm sm:text-base">{error}</span>
+					</div>
+				)}
+
+				{/* Main Content Grid */}
+				<div className='grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8'>
+					{/* Quick Actions Card */}
+					<div className='lg:col-span-1'>
+						<div className='bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-100'>
+							<div className='flex items-center gap-3 mb-6'>
+								<div className='w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center'>
+									<svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+									</svg>
 								</div>
-							))}
-							{groups.length > 3 && (
+								<h2 className='text-xl font-bold text-gray-800'>Quick Actions</h2>
+							</div>
+							<div className='space-y-3'>
 								<button
-									onClick={() => navigate('/groups')}
-									className='w-full text-blue-500 hover:text-blue-700 text-sm'
+									onClick={() => setShowCreateForm(true)}
+									className='w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-4 rounded-xl font-medium hover:from-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center justify-center gap-2'
 								>
-									View all {groups.length} groups →
+									<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+									</svg>
+									Create New Group
 								</button>
+								<button
+									onClick={() => navigate('/expenses')}
+									className='w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-4 rounded-xl font-medium hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center justify-center gap-2'
+								>
+									<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+									</svg>
+									View Expenses
+								</button>
+							</div>
+						</div>
+					</div>
+
+					{/* Your Groups Card */}
+					<div className='lg:col-span-2'>
+						<div className='bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-100'>
+							<div className='flex items-center justify-between mb-6'>
+								<div className='flex items-center gap-3'>
+									<div className='w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center'>
+										<svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+										</svg>
+									</div>
+									<h2 className='text-xl font-bold text-gray-800'>Your Groups</h2>
+								</div>
+								{groups.length > 0 && (
+									<span className='bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full'>
+										{groups.length} group{groups.length !== 1 ? 's' : ''}
+									</span>
+								)}
+							</div>
+
+							{groups.length === 0 ? (
+								<div className='text-center py-12'>
+									<div className='w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4'>
+										<svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+										</svg>
+									</div>
+									<h3 className='text-lg font-medium text-gray-800 mb-2'>No groups yet</h3>
+									<p className='text-gray-500 mb-6 max-w-sm mx-auto'>
+										Get started by creating your first expense group to share costs with friends or family.
+									</p>
+									<button
+										onClick={() => setShowCreateForm(true)}
+										className='bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-6 rounded-xl font-medium hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+									>
+										Create Your First Group
+									</button>
+								</div>
+							) : (
+								<div>
+									<div className='grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4'>
+										{groups.slice(0, 4).map((group) => (
+											<div
+												key={group.id}
+												className='border border-gray-200 rounded-xl p-4 hover:bg-gray-50 hover:border-indigo-300 cursor-pointer transition-all duration-200 group'
+												onClick={() => navigate(`/groups/${group.id}`)}
+											>
+												<div className='flex items-start justify-between'>
+													<div className='flex-1'>
+														<h3 className='font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors duration-200 mb-1'>
+															{group.name}
+														</h3>
+														<p className='text-sm text-gray-500'>
+															Created: {new Date(group.created_at).toLocaleDateString()}
+														</p>
+													</div>
+													<svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+													</svg>
+												</div>
+											</div>
+										))}
+									</div>
+									{groups.length > 4 && (
+										<button
+											onClick={() => navigate('/groups')}
+											className='w-full text-indigo-600 hover:text-indigo-800 font-medium text-sm py-2 hover:bg-indigo-50 rounded-lg transition-colors duration-200'
+										>
+											View all {groups.length} groups →
+										</button>
+									)}
+								</div>
 							)}
 						</div>
-					)}
+					</div>
 				</div>
 
-				{/* Recent Activity */}
-				<div className='bg-white rounded-lg shadow-md p-6'>
-					<h2 className='text-xl font-semibold mb-4'>
-						Recent Activity
-					</h2>
-					<div className='space-y-3'>
-						<div className='text-sm text-gray-600'>
-							<p>
-								• Joined {groups.length} group
-								{groups.length !== 1 ? 's' : ''}
-							</p>
-							<p>• No recent expenses</p>
+				{/* Stats Row */}
+				<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 lg:mt-8'>
+					<div className='bg-white rounded-xl p-6 border border-gray-100 shadow-sm'>
+						<div className='flex items-center gap-3'>
+							<div className='w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center'>
+								<svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+								</svg>
+							</div>
+							<div>
+								<p className='text-2xl font-bold text-gray-800'>{groups.length}</p>
+								<p className='text-sm text-gray-600'>Active Groups</p>
+							</div>
+						</div>
+					</div>
+
+					<div className='bg-white rounded-xl p-6 border border-gray-100 shadow-sm'>
+						<div className='flex items-center gap-3'>
+							<div className='w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center'>
+								<svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+								</svg>
+							</div>
+							<div>
+								<p className='text-2xl font-bold text-gray-800'>$0</p>
+								<p className='text-sm text-gray-600'>Total Expenses</p>
+							</div>
+						</div>
+					</div>
+
+					<div className='bg-white rounded-xl p-6 border border-gray-100 shadow-sm'>
+						<div className='flex items-center gap-3'>
+							<div className='w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center'>
+								<svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+							</div>
+							<div>
+								<p className='text-2xl font-bold text-gray-800'>0</p>
+								<p className='text-sm text-gray-600'>Pending</p>
+							</div>
+						</div>
+					</div>
+
+					<div className='bg-white rounded-xl p-6 border border-gray-100 shadow-sm'>
+						<div className='flex items-center gap-3'>
+							<div className='w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center'>
+								<svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+								</svg>
+							</div>
+							<div>
+								<p className='text-2xl font-bold text-gray-800'>New</p>
+								<p className='text-sm text-gray-600'>Member</p>
+							</div>
 						</div>
 					</div>
 				</div>
 			</div>
 
+			{/* Create Group Modal */}
 			{showCreateForm && (
-				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-					<div className='bg-white rounded-lg p-6 w-full max-w-md'>
-						<h2 className='text-xl font-semibold mb-4'>
-							Create New Group
-						</h2>
+				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
+					<div className='bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all'>
+						<div className='flex items-center gap-3 mb-6'>
+							<div className='w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center'>
+								<svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+								</svg>
+							</div>
+							<h2 className='text-xl font-bold text-gray-800'>Create New Group</h2>
+						</div>
 						<form onSubmit={handleCreateGroup}>
-							<div className='mb-4'>
-								<label className='block text-sm font-medium mb-2'>
+							<div className='mb-6'>
+								<label className='block text-sm font-medium text-gray-700 mb-2'>
 									Group Name
 								</label>
 								<input
 									type='text'
 									value={newGroupName}
-									onChange={(e) =>
-										setNewGroupName(e.target.value)
-									}
-									className='w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500'
+									onChange={(e) => setNewGroupName(e.target.value)}
+									className='w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200'
+									placeholder='Enter group name...'
 									required
 								/>
 							</div>
 							{createGroupError && (
-								<div className='text-red-500 mb-2'>
+								<div className='text-red-500 mb-4 text-sm flex items-center gap-2'>
+									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
 									{createGroupError}
 								</div>
 							)}
-							<div className='flex justify-end space-x-3'>
+							<div className='flex flex-col sm:flex-row justify-end gap-3'>
 								<button
 									type='button'
 									onClick={() => setShowCreateForm(false)}
-									className='px-4 py-2 text-gray-600 hover:text-gray-800'
+									className='px-6 py-3 text-gray-600 hover:text-gray-800 font-medium rounded-xl hover:bg-gray-100 transition-all duration-200'
 								>
 									Cancel
 								</button>
 								<button
 									type='submit'
-									className='bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600'
+									className='bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-6 rounded-xl font-medium hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
 								>
-									Create
+									Create Group
 								</button>
 							</div>
 						</form>
