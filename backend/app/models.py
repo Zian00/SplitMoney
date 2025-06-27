@@ -71,6 +71,7 @@ class Expense(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     group_id: int = Field(foreign_key="groups.id", nullable=False)
     description: Optional[str] = Field(default=None)
+    type: str = Field(default="regular")  # "regular" or "settlement"
     total_amount: float = Field(nullable=False)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),

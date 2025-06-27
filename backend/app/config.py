@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # Application settings
     api_prefix: str = "/api"
     debug: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
+    frontend_base_url: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
 
 
 # Create settings instance

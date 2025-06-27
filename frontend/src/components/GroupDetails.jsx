@@ -33,7 +33,6 @@ const GroupDetails = () => {
 	const isCreator = auth?.user?.id === group?.created_by;
 	const [inviteEmail, setInviteEmail] = useState('');
 	const [inviteLoading, setInviteLoading] = useState(false);
-	const [inviteError, setInviteError] = useState('');
 	const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
 	const [isDeletingGroup, setIsDeletingGroup] = useState(false);
 
@@ -208,14 +207,14 @@ const GroupDetails = () => {
 	const handleSendInvite = async (e) => {
 		e.preventDefault();
 		setInviteLoading(true);
-		setInviteError('');
 		try {
 			await apiClient.post(`/api/groups/${groupId}/invite`, { email: inviteEmail });
 			toast.success('Invitation sent!');
 			setInviteEmail('');
 		} catch (err) {
-			setInviteError(err.response?.data?.detail || 'Failed to send invite');
-			toast.error(err.response?.data?.detail || 'Failed to send invite');
+			const errDetail = err.response;
+			console.log(errDetail);
+			toast.error(errDetail || 'Failed to send invite');
 		} finally {
 			setInviteLoading(false);
 		}

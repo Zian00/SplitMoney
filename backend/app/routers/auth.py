@@ -38,31 +38,6 @@ async def register_user(user_data: UserCreate, session: Session = Depends(get_se
     session.refresh(user)
     return user
 
-# Login endpoint
-@router.post("/login")
-async def login_user(user_data: UserCreate, session: Session = Depends(get_session)):
-    print("=== LOGIN ENDPOINT CALLED ===")
-    print(f"Login attempt for: {user_data.email}")
-
-    # Find user by email
-    user = get_user_by_email(session, user_data.email)
-    if not user:
-        raise HTTPException(
-            status_code=401, detail="Invalid email or password")
-
-    # Verify password
-    if not pwd_context.verify(user_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=401, detail="Invalid email or password")
-
-    return {
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "created_at": user.created_at
-        }
-    }
-
 
 @router.put("/users/me/name")
 async def update_user_name(

@@ -2,10 +2,11 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 
 const apiClient = axios.create({
-	baseURL: 'http://localhost:8000',
+	baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
 	headers: {
 		'Content-Type': 'application/json',
 	},
+	withCredentials: false,
 });
 
 // Add a request interceptor to include JWT
@@ -25,8 +26,18 @@ apiClient.interceptors.response.use(
 	(response) => response,
 	(error) => {
 		if (error.response && error.response.status === 401) {
-			// Show a toast instead of alert
-			toast.error('Session expired, please log in again.');
+			const detail = error.response.data?.detail;
+			// Token valid, but user deleted	
+			if (detail === "User not found") {
+				toast.error('Account does not exist. Please register or contact support.');
+				//Token expired/invalid
+			} else if (detail === "Invalid authentication credentials") {
+				toast.error('Session expired, please log in again.');
+			} else if (detail === "Incorrect email or password") {
+				toast.error('Incorrect email or password.');
+			} else {
+				toast.error(detail || 'Authentication error. Please log in again.');
+			}
 			localStorage.removeItem('token');
 			localStorage.removeItem('user');
 			setTimeout(() => {

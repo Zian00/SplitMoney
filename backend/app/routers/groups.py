@@ -11,6 +11,8 @@ from fastapi_mail import MessageSchema
 from datetime import datetime, timezone, timedelta
 import secrets
 from pathlib import Path
+from app.config import settings
+
 router = APIRouter()
 
 # Get all groups for the current user
@@ -270,11 +272,11 @@ async def invite_user_to_group(
     session.commit()
 
     # --- Send HTML email in background ---
-    invite_link = f"http://localhost:3000/invite/{token}"
+    invite_link = f"{settings.frontend_base_url}/invite/{token}"
     
     # Read the HTML template
     template_path = Path(__file__).parent.parent / "templates" / "invitation.html"
-    with open(template_path, "r") as f:
+    with open(template_path, "r",  encoding="utf-8") as f:
         template_str = f.read()
     
     # Populate the template
