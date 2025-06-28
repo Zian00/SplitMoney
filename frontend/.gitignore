@@ -29,3 +29,6 @@ Desktop.ini
 
 # Build output
 build/
+
+.env
+.env.production
