@@ -42,3 +42,25 @@ class UserCreate(BaseModel):
             not re.search(r'\d', v)):
             raise ValueError('Password must be at least 8 characters and include uppercase, lowercase, and a digit.')
         return v
+
+class ExpensePayerOut(BaseModel):
+    id: int
+    expense_id: int
+    user_id: int
+    paid_amount: float
+
+class ExpenseShareOut(BaseModel):
+    id: int
+    expense_id: int
+    user_id: int
+    share_amount: float
+
+class ExpenseWithDetailsOut(BaseModel):
+    id: int
+    group_id: int
+    description: str = None
+    type: str
+    total_amount: float
+    created_at: str
+    payers: List[ExpensePayerOut]
+    shares: List[ExpenseShareOut]

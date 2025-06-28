@@ -17,6 +17,8 @@ const Expenses = () => {
     const [sortOrder, setSortOrder] = useState('desc');
     const [showFilters, setShowFilters] = useState(false);
 
+    const userId = auth.user.id;
+
     useEffect(() => {
         fetchExpenses();
         fetchGroups();
@@ -76,31 +78,6 @@ const Expenses = () => {
         return filtered;
     };
 
-    const calculateStats = () => {
-        const filteredExpenses = getFilteredAndSortedExpenses();
-        const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.total_amount, 0);
-        const averageAmount = filteredExpenses.length > 0 ? totalAmount / filteredExpenses.length : 0;
-        
-        const monthlyData = filteredExpenses.reduce((acc, expense) => {
-            const month = new Date(expense.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-            acc[month] = (acc[month] || 0) + expense.total_amount;
-            return acc;
-        }, {});
-
-        const mostExpensive = filteredExpenses.reduce((max, expense) => 
-            expense.total_amount > max.total_amount ? expense : max, 
-            { total_amount: 0 }
-        );
-
-        return {
-            totalExpenses: filteredExpenses.length,
-            totalAmount,
-            averageAmount,
-            monthlyData,
-            mostExpensive
-        };
-    };
-
     const getGroupName = (groupId) => {
         const group = groups.find(g => g.id === groupId);
         return group ? group.name : 'Unknown Group';
@@ -135,7 +112,55 @@ const Expenses = () => {
     }
 
     const filteredExpenses = getFilteredAndSortedExpenses();
-    const stats = calculateStats();
+    console.log(expenses);
+    // Only include expenses where the user is a payer or owes a share AND not a settlement
+    const involvedExpenses = expenses.filter(exp =>
+        exp.type !== "settlement" &&
+        (
+            (exp.payers && exp.payers.some(p => String(p.user_id) === String(userId))) ||
+            (exp.shares && exp.shares.some(s => String(s.user_id) === String(userId)))
+        )
+    );
+    // console.log(involvedExpenses);
+    // Calculate the user's total amount involved (paid + owed) per expense
+    const userAmounts = involvedExpenses.map(exp => {
+        const paid = exp.payers
+            .filter(p => String(p.user_id) === String(userId))
+            .reduce((sum, p) => sum + p.paid_amount, 0);
+        const owed = exp.shares
+            .filter(s => String(s.user_id) === String(userId))
+            .reduce((sum, sObj) => sum + sObj.share_amount, 0);
+        return { expense: exp, total: paid + owed, paid, owed };
+    });
+
+    // Total expenses count (user involved)
+    const totalExpenses = involvedExpenses.length;
+
+    // Total amount (user involved)
+    const totalAmount = userAmounts.reduce((sum, ua) => sum + ua.total, 0);
+
+    // Average amount (user involved)
+    const averageAmount = totalExpenses > 0 ? totalAmount / totalExpenses : 0;
+
+    // Highest single-transaction amount (user involved)
+    const highest = userAmounts.reduce(
+        (max, ua) => (ua.total > max.total ? ua : max),
+        { total: 0, expense: null, paid: 0, owed: 0 }
+    );
+
+    // User-centric monthly trend data
+    const monthlyData = involvedExpenses.reduce((acc, exp) => {
+        const paid = exp.payers
+            .filter(p => String(p.user_id) === String(userId))
+            .reduce((sum, p) => sum + p.paid_amount, 0);
+        const owed = exp.shares
+            .filter(s => String(s.user_id) === String(userId))
+            .reduce((sum, sObj) => sum + sObj.share_amount, 0);
+        const userTotal = paid + owed;
+        const month = new Date(exp.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        acc[month] = (acc[month] || 0) + userTotal;
+        return acc;
+    }, {});
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -183,7 +208,7 @@ const Expenses = () => {
                             </div>
                             <div className="ml-3 lg:ml-4">
                                 <p className="text-xs lg:text-sm font-medium text-gray-600">Total Expenses</p>
-                                <p className="text-xl lg:text-2xl font-bold text-gray-900">{stats.totalExpenses}</p>
+                                <p className="text-xl lg:text-2xl font-bold text-gray-900">{totalExpenses}</p>
                             </div>
                         </div>
                     </div>
@@ -197,7 +222,7 @@ const Expenses = () => {
                             </div>
                             <div className="ml-3 lg:ml-4">
                                 <p className="text-xs lg:text-sm font-medium text-gray-600">Total Amount</p>
-                                <p className="text-xl lg:text-2xl font-bold text-gray-900">${stats.totalAmount.toFixed(2)}</p>
+                                <p className="text-xl lg:text-2xl font-bold text-gray-900">${totalAmount.toFixed(2)}</p>
                             </div>
                         </div>
                     </div>
@@ -211,7 +236,7 @@ const Expenses = () => {
                             </div>
                             <div className="ml-3 lg:ml-4">
                                 <p className="text-xs lg:text-sm font-medium text-gray-600">Average</p>
-                                <p className="text-xl lg:text-2xl font-bold text-gray-900">${stats.averageAmount.toFixed(2)}</p>
+                                <p className="text-xl lg:text-2xl font-bold text-gray-900">${averageAmount.toFixed(2)}</p>
                             </div>
                         </div>
                     </div>
@@ -226,7 +251,9 @@ const Expenses = () => {
                             <div className="ml-3 lg:ml-4">
                                 <p className="text-xs lg:text-sm font-medium text-gray-600">Highest</p>
                                 <p className="text-xl lg:text-2xl font-bold text-gray-900">
-                                    {stats.mostExpensive.total_amount > 0 ? `$${stats.mostExpensive.total_amount.toFixed(2)}` : 'N/A'}
+                                    {highest.expense
+                                        ? `$${highest.total.toFixed(2)}`
+                                        : 'N/A'}
                                 </p>
                             </div>
                         </div>
@@ -293,11 +320,11 @@ const Expenses = () => {
                 </div>
 
                 {/* Monthly Trend Chart */}
-                {Object.keys(stats.monthlyData).length > 0 && (
+                {Object.keys(monthlyData).length > 0 && (
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 lg:p-6">
                         <h3 className="text-lg font-semibold mb-4 text-gray-900">Monthly Spending Trend</h3>
                         <div className="space-y-3">
-                            {Object.entries(stats.monthlyData)
+                            {Object.entries(monthlyData)
                                 .sort(([a], [b]) => new Date(a) - new Date(b))
                                 .map(([month, amount]) => (
                                     <div key={month} className="flex items-center justify-between">
@@ -307,7 +334,7 @@ const Expenses = () => {
                                                 <div 
                                                     className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500" 
                                                     style={{ 
-                                                        width: `${(amount / Math.max(...Object.values(stats.monthlyData))) * 100}%` 
+                                                        width: `${(amount / Math.max(...Object.values(monthlyData))) * 100}%` 
                                                     }}
                                                 ></div>
                                             </div>

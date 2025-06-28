@@ -1,30 +1,60 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, delete
 from typing import List
 from app.database import get_session
 from app.deps import get_current_user
 from app.models import Expense, ExpensePayer, ExpenseShare, Group, Membership, User
+from app.schemas import ExpenseWithDetailsOut
+from collections import defaultdict
 
 router = APIRouter()
 
 # Get all expenses for the current user across all their groups
-@router.get("/expenses", response_model=List[Expense])
+@router.get("/expenses", response_model=List[ExpenseWithDetailsOut])
 async def get_expenses(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    # Step 1: Get all group IDs the user is a member of
     user_group_ids = session.exec(
         select(Membership.group_id).where(Membership.user_id == current_user.id)
     ).all()
 
     if not user_group_ids:
-        return [] # User is not in any groups, so they have no expenses
+        return []
 
-    # Step 2: Fetch all expenses that belong to those groups
-    statement = select(Expense).where(Expense.group_id.in_(user_group_ids))
-    expenses = session.exec(statement).all()
-    return expenses
+    expenses = session.exec(
+        select(Expense).where(Expense.group_id.in_(user_group_ids))
+    ).all()
+    expense_ids = [exp.id for exp in expenses]
+
+    payers = session.exec(
+        select(ExpensePayer).where(ExpensePayer.expense_id.in_(expense_ids))
+    ).all()
+    shares = session.exec(
+        select(ExpenseShare).where(ExpenseShare.expense_id.in_(expense_ids))
+    ).all()
+
+    payers_by_expense = defaultdict(list)
+    for p in payers:
+        payers_by_expense[p.expense_id].append(p.model_dump())
+
+    shares_by_expense = defaultdict(list)
+    for s in shares:
+        shares_by_expense[s.expense_id].append(s.model_dump())
+
+    result = []
+    for exp in expenses:
+        result.append({
+            "id": exp.id,
+            "group_id": exp.group_id,
+            "description": exp.description,
+            "type": exp.type,
+            "total_amount": exp.total_amount,
+            "created_at": exp.created_at.isoformat(),
+            "payers": payers_by_expense[exp.id],
+            "shares": shares_by_expense[exp.id],
+        })
+    return result
 
 # Get expenses for a specific group
 @router.get("/groups/{group_id}/expenses", response_model=List[Expense])
