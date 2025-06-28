@@ -101,82 +101,27 @@ const Navigation = () => {
 				</div>
 			</nav>
 
-			{/* Mobile Top Bar */}
-			<div className='md:hidden bg-white shadow-md border-b border-gray-200 sticky top-0 z-50'>
-				<div className='flex justify-between items-center px-4 h-14'>
-					<Link to='/' className='text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'>
-						SplitMoney
+			
+			{/* Mobile Bottom Navigation */}
+			<div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t border-gray-200 shadow-lg">
+				<div className="flex justify-around items-center h-14">
+					<Link to="/" className={`flex flex-col items-center justify-center flex-1 ${isActive('/') ? 'text-blue-600' : 'text-gray-500'}`}>
+						<FontAwesomeIcon icon={faHome} className="w-5 h-5 mb-1" />
+						<span className="text-xs">Home</span>
 					</Link>
-					<div className='flex items-center space-x-3'>
-						<Link to='/profile' className='p-2'>
-							<div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center'>
-								<FontAwesomeIcon icon={faUser} className='w-4 h-4 text-white' />
-							</div>
-						</Link>
-						<button
-							onClick={toggleMobileMenu}
-							className='p-2 rounded-lg hover:bg-gray-100 transition-colors'
-						>
-							<FontAwesomeIcon 
-								icon={isMobileMenuOpen ? faTimes : faBars} 
-								className='w-5 h-5 text-gray-600' 
-							/>
-						</button>
-					</div>
+					<Link to="/groups" className={`flex flex-col items-center justify-center flex-1 ${isActive('/groups') ? 'text-blue-600' : 'text-gray-500'}`}>
+						<FontAwesomeIcon icon={faUsers} className="w-5 h-5 mb-1" />
+						<span className="text-xs">Groups</span>
+					</Link>
+					<Link to="/expenses" className={`flex flex-col items-center justify-center flex-1 ${isActive('/expenses') ? 'text-blue-600' : 'text-gray-500'}`}>
+						<FontAwesomeIcon icon={faReceipt} className="w-5 h-5 mb-1" />
+						<span className="text-xs">Expenses</span>
+					</Link>
+					<Link to="/profile" className={`flex flex-col items-center justify-center flex-1 ${isActive('/profile') ? 'text-blue-600' : 'text-gray-500'}`}>
+						<FontAwesomeIcon icon={faUser} className="w-5 h-5 mb-1" />
+						<span className="text-xs">Profile</span>
+					</Link>
 				</div>
-
-				{/* Mobile Dropdown Menu */}
-				{isMobileMenuOpen && (
-					<div className='absolute top-full left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-40'>
-						<div className='px-4 py-2'>
-							<div className='flex items-center space-x-3 py-3 border-b border-gray-100'>
-								<div className='w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center'>
-									<FontAwesomeIcon icon={faUser} className='w-5 h-5 text-white' />
-								</div>
-								<div>
-									<p className='font-medium text-gray-900'>{user.name}</p>
-									<p className='text-sm text-gray-500'>Welcome back!</p>
-								</div>
-							</div>
-							<div className='py-2'>
-								{navigationItems.map((item) => (
-									<Link
-										key={item.path}
-										to={item.path}
-										onClick={() => setIsMobileMenuOpen(false)}
-										className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors ${
-											isActive(item.path)
-												? 'bg-blue-100 text-blue-700'
-												: 'text-gray-600 hover:bg-gray-50'
-										}`}
-									>
-										<FontAwesomeIcon icon={item.icon} className='w-5 h-5' />
-										<span className='font-medium'>{item.label}</span>
-									</Link>
-								))}
-								<Link
-									to='/profile'
-									onClick={() => setIsMobileMenuOpen(false)}
-									className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors ${
-										isActive('/profile')
-											? 'bg-blue-100 text-blue-700'
-											: 'text-gray-600 hover:bg-gray-50'
-									}`}
-								>
-									<FontAwesomeIcon icon={faUser} className='w-5 h-5' />
-									<span className='font-medium'>Profile</span>
-								</Link>
-								<button
-									onClick={handleLogout}
-									className='flex items-center space-x-3 px-3 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors w-full text-left'
-								>
-									<FontAwesomeIcon icon={faSignOutAlt} className='w-5 h-5' />
-									<span className='font-medium'>Logout</span>
-								</button>
-							</div>
-						</div>
-					</div>
-				)}
 			</div>
 		</>
 	);

@@ -45,10 +45,10 @@ const Expenses = () => {
     };
 
     const getFilteredAndSortedExpenses = () => {
-        let filtered = expenses;
+        let filtered = expenses.filter(exp => exp.type !== 'settlement');
 
         if (filterGroup !== 'all') {
-            filtered = expenses.filter(expense => expense.group_id === parseInt(filterGroup));
+            filtered = filtered.filter(expense => expense.group_id === parseInt(filterGroup));
         }
 
         filtered.sort((a, b) => {
@@ -332,20 +332,21 @@ const Expenses = () => {
                                 className="px-4 lg:px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer group"
                                 onClick={() => navigate(`/expenses/${expense.id}?from=${encodeURIComponent(location.pathname)}`)}
                             >
-                                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between space-y-3 lg:space-y-0">
+                                {/* Always use desktop layout, but adjust font sizes for mobile */}
+                                <div className="flex flex-row items-start justify-between space-y-0">
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                                            <h3 className="font-semibold text-gray-900 text-base lg:text-lg truncate group-hover:text-blue-600 transition-colors">
+                                        <div className="flex flex-row items-center gap-2 sm:gap-3 mb-2">
+                                            <h3 className="font-semibold text-gray-900 text-base sm:text-lg truncate group-hover:text-blue-600 transition-colors">
                                                 {expense.description || 'No description'}
                                             </h3>
                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit">
                                                 {getGroupName(expense.group_id)}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-gray-600 mb-2">
+                                        <p className="text-xs sm:text-sm text-gray-600 mb-2">
                                             {formatDate(expense.created_at)}
                                         </p>
-                                        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                                        {/* <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
                                             <span className="flex items-center gap-1">
                                                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
                                                 Group ID: {expense.group_id}
@@ -354,12 +355,12 @@ const Expenses = () => {
                                                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
                                                 Expense ID: {expense.id}
                                             </span>
-                                        </div>
+                                        </div> */}
                                     </div>
                                     
-                                    <div className="flex flex-col lg:items-end lg:text-right space-y-2">
-                                        <div className="flex items-center justify-between lg:justify-end gap-3">
-                                            <span className="text-xl lg:text-2xl font-bold text-green-600">
+                                    <div className="flex flex-col items-end text-right space-y-2 min-w-[120px]">
+                                        <div className="flex items-center justify-end gap-3">
+                                            <span className="text-lg sm:text-2xl font-bold text-green-600">
                                                 ${expense.total_amount.toFixed(2)}
                                             </span>
                                             <div className="flex items-center gap-1">
@@ -368,12 +369,13 @@ const Expenses = () => {
                                                 </svg>
                                             </div>
                                         </div>
+                                        {/* view group button */}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 navigate(`/groups/${expense.group_id}`);
                                             }}
-                                            className="text-blue-500 hover:text-blue-700 text-sm font-medium transition-colors flex items-center gap-1"
+                                            className="text-blue-500 hover:text-blue-700 text-xs sm:text-sm font-medium transition-colors flex items-center gap-1"
                                         >
                                             View Group
                                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -5,6 +5,8 @@ import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 import ConfirmationModal from './ConfirmationModal';
 import EditExpenseModal from './EditExpenseModal';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 
 const GroupDetails = () => {
 	const { groupId } = useParams();
@@ -36,6 +38,9 @@ const GroupDetails = () => {
 	const [inviteError, setInviteError] = useState('');
 	const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
 	const [isDeletingGroup, setIsDeletingGroup] = useState(false);
+	const [showSettleUpModal, setShowSettleUpModal] = useState(false);
+	const [debtToSettle, setDebtToSettle] = useState(null);
+	const [isSettlingUp, setIsSettlingUp] = useState(false);
 
 	useEffect(() => {
 		fetchGroupDetails();
@@ -70,7 +75,10 @@ const GroupDetails = () => {
 					};
 				})
 			);
-			setExpenses(detailedExpenses);
+			const sortedExpenses = [...detailedExpenses].sort(
+				(a, b) => new Date(b.created_at) - new Date(a.created_at)
+			);
+			setExpenses(sortedExpenses);
 		} catch (err) {
 			toast.error('Failed to load expenses');
 			console.error('Error fetching expenses:', err);
@@ -222,6 +230,31 @@ const GroupDetails = () => {
 		}
 	};
 
+	const handleSettleUp = (debt) => {
+		setDebtToSettle(debt);
+		setShowSettleUpModal(true);
+	};
+
+	const confirmSettleUp = async () => {
+		if (!debtToSettle) return;
+		setIsSettlingUp(true);
+		try {
+			await apiClient.post(`/api/groups/${groupId}/settle`, {
+				to_user_id: debtToSettle.to_user.id,
+				amount: debtToSettle.amount
+			});
+			toast.success('Settlement recorded!');
+			fetchSummary();
+			fetchGroupExpenses();
+			setShowSettleUpModal(false);
+			setDebtToSettle(null);
+		} catch (err) {
+			toast.error('Failed to settle up');
+		} finally {
+			setIsSettlingUp(false);
+		}
+	};
+
 	if (loading) {
 		return (
 			<div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
@@ -260,6 +293,10 @@ const GroupDetails = () => {
 		);
 	}
 
+	const sortedExpenses = [...expenses].sort(
+		(a, b) => new Date(b.created_at) - new Date(a.created_at)
+	);
+
 	return (
 		<div className='min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'>
 			{/* Header Section */}
@@ -269,12 +306,11 @@ const GroupDetails = () => {
 					<div className="flex items-center gap-3">
 						<button 
 							onClick={() => navigate('/groups')}
-							className="sm:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+							className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
 						>
-							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-							</svg>
+							<FontAwesomeIcon icon={faArrowLeft} className='mr-2' />
 						</button>
+						
 						<div>
 							<h1 className='text-2xl sm:text-3xl font-bold text-gray-900'>
 								{group.name}
@@ -310,57 +346,109 @@ const GroupDetails = () => {
 								<div className='flex items-center justify-between'>
 									<h2 className='text-xl font-semibold text-gray-900'>Recent Expenses</h2>
 									<span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
-										{expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}
+										{expenses.filter(e => e.type !== 'settlement').length} {expenses.filter(e => e.type !== 'settlement').length === 1 ? 'expense' : 'expenses'}
 									</span>
 								</div>
 							</div>
 
-							<div className='divide-y divide-gray-100'>
-								{expenses.length > 0 ? expenses.map((expense) => {
-									const userPaid = expense.payers
-										.filter(p => Number(p.user_id) === auth.user.id)
-										.reduce((sum, p) => sum + Number(p.paid_amount), 0);
+							<div className='divide-y divide-gray-100 max-h-[600px] overflow-y-auto'>
 
-									const userOwes = expense.shares
-										.filter(s => Number(s.user_id) === auth.user.id)
-										.reduce((sum, s) => sum + Number(s.share_amount), 0);
+							{sortedExpenses.length > 0 ? sortedExpenses.map((expense) => {
+								const userPaid = expense.payers
+									.filter(p => Number(p.user_id) === auth.user.id)
+									.reduce((sum, p) => sum + Number(p.paid_amount), 0);
 
-									const net = userPaid - userOwes;
-									let userStatus, userStatusColor, userStatusBg;
-									if (userPaid === 0 && userOwes === 0) {
-										userStatus = "Not involved";
-										userStatusColor = "text-gray-500";
-										userStatusBg = "bg-gray-50";
-									} else if (net > 0.01) {
-										userStatus = `You lent $${net.toFixed(2)}`;
-										userStatusColor = "text-emerald-700";
-										userStatusBg = "bg-emerald-50";
-									} else if (net < -0.01) {
-										userStatus = `You owe $${Math.abs(net).toFixed(2)}`;
-										userStatusColor = "text-red-700";
-										userStatusBg = "bg-red-50";
-									} else {
-										userStatus = "You're settled";
-										userStatusColor = "text-gray-700";
-										userStatusBg = "bg-gray-50";
-									}
+								const userOwes = expense.shares
+									.filter(s => Number(s.user_id) === auth.user.id)
+									.reduce((sum, s) => sum + Number(s.share_amount), 0);
 
-									return (
-										<div 
-											key={expense.id} 
-											className="p-6 cursor-pointer transition-all duration-200 hover:bg-gray-50 active:bg-gray-100 group"
-											onClick={() => navigate(`/expenses/${expense.id}?from=${encodeURIComponent(location.pathname)}`)}
-										>
-											<div className="flex flex-col sm:flex-row sm:items-start gap-4">
+								const net = userPaid - userOwes;
+								let userStatus, userStatusColor, userStatusBg;
+								if (userPaid === 0 && userOwes === 0) {
+									userStatus = "Not involved";
+									userStatusColor = "text-gray-500";
+									userStatusBg = "bg-gray-50";
+								} else if (net > 0.01) {
+									userStatus = `You lent $${net.toFixed(2)}`;
+									userStatusColor = "text-emerald-700";
+									userStatusBg = "bg-emerald-50";
+								} else if (net < -0.01) {
+									userStatus = `You owe $${Math.abs(net).toFixed(2)}`;
+									userStatusColor = "text-red-700";
+									userStatusBg = "bg-red-50";
+								} else {
+									userStatus = "You're settled";
+									userStatusColor = "text-gray-700";
+									userStatusBg = "bg-gray-50";
+								}
+
+								return (
+									<div 
+										key={expense.id} 
+										className="p-3 sm:p-6 cursor-pointer transition-all duration-200 hover:bg-gray-50 active:bg-gray-100 group"
+										onClick={() => navigate(`/expenses/${expense.id}?from=${encodeURIComponent(location.pathname)}`)}
+									>
+										{expense.type === "settlement" ? (
+											<div className="flex items-center gap-3">
+												{/* Settlement Content */}
+												<div className="flex-1 min-w-0">
+													<div className="flex items-start justify-between gap-2">
+														<div className="flex-1 min-w-0">
+															<h3 className="text-sm sm:text-lg font-semibold text-green-700 mb-1 flex items-center gap-2">
+																Settlement
+															</h3>
+															<p className="text-xs text-gray-500 flex items-center gap-1 mb-2">
+																<svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+																</svg>
+																{new Date(expense.created_at).toLocaleDateString('en-US', {
+																	year: 'numeric',
+																	month: 'short',
+																	day: 'numeric',
+																	hour: '2-digit',
+																	minute: '2-digit'
+																})}
+															</p>
+															{expense.payers.length > 0 && expense.shares.length > 0 && (
+																<div className="text-xs sm:text-sm text-green-800">
+																	{(() => {
+																		const payer = groupMembers.find(u => u.id === expense.payers[0].user_id);
+																		const receiver = groupMembers.find(u => u.id === expense.shares[0].user_id);
+																		return (
+																			<>
+																				<strong>{payer ? (payer.id === auth.user.id ? 'You' : payer.name) : 'Someone'}</strong>
+																				{' paid '}
+																				<strong>{receiver ? (receiver.id === auth.user.id ? 'you' : receiver.name) : 'someone'}</strong>
+																				{' to settle up'}
+																			</>
+																		);
+																	})()}
+																</div>
+															)}
+														</div>
+														{/* Settlement Amount */}
+														<div className="text-right flex-shrink-0">
+															<div className="text-lg sm:text-2xl font-bold text-green-700">
+																${expense.total_amount.toFixed(2)}
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+										) : (
+											
+											<div className="flex items-center gap-3">
 												{/* Left content */}
 												<div className="flex-1 min-w-0">
-													<div className="flex items-start justify-between mb-3">
+													<div className="flex items-start justify-between mb-2 gap-2">
 														<div className="flex-1 min-w-0">
-															<h3 className='text-lg font-semibold text-gray-900 mb-1 truncate group-hover:text-blue-600 transition-colors'>
-																{expense.description || 'Untitled expense'}
+															<h3 className='text-sm sm:text-lg font-semibold text-gray-900 mb-1 truncate group-hover:text-blue-600 transition-colors'>
+																{expense.type === "settlement"
+																	? "Settlement"
+																	: expense.description || 'Untitled expense'}
 															</h3>
-															<p className='text-sm text-gray-500 flex items-center gap-1'>
-																<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<p className='text-xs text-gray-500 flex items-center gap-1'>
+																<svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 																</svg>
 																{new Date(expense.created_at).toLocaleDateString('en-US', {
@@ -370,31 +458,32 @@ const GroupDetails = () => {
 																})}
 															</p>
 														</div>
-														<div className="text-right ml-4 flex-shrink-0">
-															<div className="text-2xl font-bold text-purple-600">
+														
+														<div className="text-right flex-shrink-0">
+															<div className="text-lg sm:text-2xl font-bold text-gray-600">
 																${expense.total_amount.toFixed(2)}
 															</div>
 														</div>
 													</div>
 
 													{/* Status badge */}
-													<div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${userStatusBg} ${userStatusColor} mb-3`}>
+													<div className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${userStatusBg} ${userStatusColor} mb-2`}>
 														{userStatus}
 													</div>
 
 													{/* Payers info */}
-													<div className="space-y-2">
-														<div className="text-sm text-gray-600">
+													<div className="space-y-1">
+														<div className="text-xs text-gray-600">
 															<span className="font-medium text-gray-800">Paid by:</span>
 														</div>
 														{expense.payers && expense.payers.length > 0 ? (
-															<div className="flex flex-wrap gap-2">
+															<div className="flex flex-wrap gap-1">
 																{expense.payers.map((payer) => {
 																	const user = groupMembers.find(u => u.id === payer.user_id);
 																	return (
 																		<span 
 																			key={payer.user_id}
-																			className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border"
+																			className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border"
 																		>
 																			{user ? (user.id === auth.user.id ? 'You' : user.name) : 'Unknown'} • ${payer.paid_amount.toFixed(2)}
 																		</span>
@@ -402,21 +491,15 @@ const GroupDetails = () => {
 																})}
 															</div>
 														) : (
-															<span className="text-gray-400 text-sm">No payer information</span>
+															<span className="text-gray-400 text-xs">No payer information</span>
 														)}
 													</div>
 												</div>
-
-												{/* Right arrow */}
-												<div className="flex items-center justify-center sm:mt-0 mt-2">
-													<svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-													</svg>
-												</div>
 											</div>
-										</div>
-									);
-								}) : (
+										)}
+									</div>
+								);
+							}): (
 									<div className='p-12 text-center'>
 										<div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
 											<svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -445,15 +528,15 @@ const GroupDetails = () => {
 							<div className='grid grid-cols-2 gap-4'>
 								<div className="text-center p-4 bg-blue-50 rounded-xl">
 									<div className="text-2xl font-bold text-blue-600">
-										{expenses.length}
+										{expenses.filter(e => e.type !== 'settlement').length}
 									</div>
 									<div className="text-sm text-blue-700">
-										{expenses.length === 1 ? 'Expense' : 'Expenses'}
+										{expenses.filter(e => e.type !== 'settlement').length === 1 ? 'Expense' : 'Expenses'}
 									</div>
 								</div>
 								<div className="text-center p-4 bg-purple-50 rounded-xl">
 									<div className="text-2xl font-bold text-purple-600">
-										${expenses.reduce((sum, expense) => sum + expense.total_amount, 0).toFixed(2)}
+										${expenses.filter(e => e.type !== 'settlement').reduce((sum, expense) => sum + expense.total_amount, 0).toFixed(2)}
 									</div>
 									<div className="text-sm text-purple-700">Total</div>
 								</div>
@@ -501,6 +584,14 @@ const GroupDetails = () => {
 														${debt.amount.toFixed(2)}
 													</div>
 												</div>
+												{isYouOwe && (
+													<button
+														className="ml-4 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+														onClick={() => handleSettleUp(debt)}
+													>
+														Settle Up
+													</button>
+												)}
 											</div>
 										);
 									})}
@@ -670,49 +761,66 @@ const GroupDetails = () => {
 
 			{/* Edit Group Modal */}
 			{editGroupMode && (
-				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-					<div className='bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all'>
-						<div className="p-6 border-b border-gray-100">
-							<h2 className='text-xl font-semibold text-gray-900 flex items-center gap-2'>
+			<div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200'>
+				<div className='bg-white rounded-3xl shadow-2xl w-full max-w-md mx-auto transform transition-all animate-in slide-in-from-bottom-4 duration-300 max-h-[90vh] overflow-hidden'>
+					{/* Header */}
+					<div className="relative p-6 border-b border-gray-100/80 bg-gradient-to-r from-blue-50 to-indigo-50">
+						<h2 className='text-xl font-semibold text-gray-900 flex items-center gap-3'>
+							<div className="p-2 bg-blue-100 rounded-xl">
 								<svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
 								</svg>
-								Edit Group Name
-							</h2>
-						</div>
-						<form onSubmit={handleEditGroupSubmit} className="p-6">
-							<div className='mb-6'>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									New Group Name
-								</label>
+							</div>
+							Edit Group Name
+						</h2>
+						<p className="text-sm text-gray-600 mt-1">Update your group name to better reflect its purpose</p>
+					</div>
+
+					{/* Form Content */}
+					<form onSubmit={handleEditGroupSubmit} className="p-6 space-y-6">
+						<div className='space-y-2'>
+							<label className='block text-sm font-medium text-gray-700'>
+								New Group Name
+							</label>
+							<div className="relative">
 								<input
 									type='text'
 									value={newGroupName}
 									onChange={(e) => setNewGroupName(e.target.value)}
-									className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+									className='w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder-gray-400 shadow-sm hover:border-gray-300'
 									required
-									placeholder="Enter group name"
+									placeholder="Enter a descriptive group name"
+									autoFocus
 								/>
+								<div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+									<svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+									</svg>
+								</div>
 							</div>
-							<div className='flex justify-end gap-3'>
-								<button
-									type='button'
-									onClick={() => setEditGroupMode(false)}
-									className='px-6 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors'
-								>
-									Cancel
-								</button>
-								<button
-									type='submit'
-									className='bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium'
-								>
-									Save Changes
-								</button>
-							</div>
-						</form>
-					</div>
+							<p className="text-xs text-gray-500">Choose a name that helps you and others identify this group easily</p>
+						</div>
+
+						{/* Action Buttons */}
+						<div className='flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2'>
+							<button
+								type='button'
+								onClick={() => setEditGroupMode(false)}
+								className='w-full sm:w-auto px-6 py-2.5 text-gray-600 hover:text-gray-800 font-medium transition-colors duration-200 rounded-xl hover:bg-gray-50 active:bg-gray-100'
+							>
+								Cancel
+							</button>
+							<button
+								type='submit'
+								className='w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2.5 px-6 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-medium shadow-sm hover:shadow-md active:scale-[0.98] transform'
+							>
+								Save Changes
+							</button>
+						</div>
+					</form>
 				</div>
-			)}
+			</div>
+		)}
 
 			{/* Confirmation Modal for removing member in group */}
 			<ConfirmationModal
@@ -744,6 +852,30 @@ const GroupDetails = () => {
 				icon="delete"
 				isLoading={isDeletingGroup}
 				loadingText="Deleting..."
+			/>
+
+			{/* Confirmation Modal for settle up */}
+			<ConfirmationModal
+				isOpen={showSettleUpModal}
+				onClose={() => {
+					setShowSettleUpModal(false);
+					setDebtToSettle(null);
+				}}
+				onConfirm={confirmSettleUp}
+				title="Settle Up"
+				message={
+					debtToSettle && (
+						<>
+							Are you sure you want to settle up with <strong>{debtToSettle.to_user.name}</strong> for <strong>${debtToSettle.amount.toFixed(2)}</strong>?
+						</>
+					)
+				}
+				confirmText="Settle Up"
+				cancelText="Cancel"
+				confirmColor="blue"
+				icon="info"
+				isLoading={isSettlingUp}
+				loadingText="Settling..."
 			/>
 		</div>
 	);

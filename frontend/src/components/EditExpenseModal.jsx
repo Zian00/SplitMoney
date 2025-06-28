@@ -9,6 +9,9 @@ const EditExpenseModal = ({
 	groupMembers,
 	title,
 	submitText,
+	readOnlyDescription = false,
+	allowedPayerIds = null,
+	allowedShareIds = null,
 }) => {
 	const [splitMode, setSplitMode] = useState('equal');
 	const [selectedSplitMembers, setSelectedSplitMembers] = useState(
@@ -205,6 +208,7 @@ const EditExpenseModal = ({
 									}
 									className='w-full p-3 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all'
 									placeholder='e.g., Dinner, Groceries'
+									disabled={readOnlyDescription}
 								/>
 							</div>
 							<div>
@@ -228,45 +232,47 @@ const EditExpenseModal = ({
 							</div>
 						</div>
 
-						{/* Split Type Button Group */}
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-3">Split Type</label>
-							<div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
-								<button
-									type="button"
-									className={`px-3 py-2 text-sm font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
-										${splitMode === 'equal'
-											? 'bg-white text-blue-600 shadow-sm'
-											: 'text-gray-600 hover:text-gray-900'}
-									`}
-									onClick={() => setSplitMode('equal')}
-								>
-									Equal
-								</button>
-								<button
-									type="button"
-									className={`px-3 py-2 text-sm font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
-										${splitMode === 'percentage'
-											? 'bg-white text-blue-600 shadow-sm'
-											: 'text-gray-600 hover:text-gray-900'}
-									`}
-									onClick={() => setSplitMode('percentage')}
-								>
-									Percentage
-								</button>
-								<button
-									type="button"
-									className={`px-3 py-2 text-sm font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
-										${splitMode === 'custom'
-											? 'bg-white text-blue-600 shadow-sm'
-											: 'text-gray-600 hover:text-gray-900'}
-									`}
-									onClick={() => setSplitMode('custom')}
-								>
-									Custom
-								</button>
+						{/* Hide Split Type if settlement (only one allowed share) */}
+						{!(allowedShareIds && allowedShareIds.length === 1) && (
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-3">Split Type</label>
+								<div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
+									<button
+										type="button"
+										className={`px-3 py-2 text-sm font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+											${splitMode === 'equal'
+												? 'bg-white text-blue-600 shadow-sm'
+												: 'text-gray-600 hover:text-gray-900'}
+										`}
+										onClick={() => setSplitMode('equal')}
+									>
+										Equal
+									</button>
+									<button
+										type="button"
+										className={`px-3 py-2 text-sm font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+											${splitMode === 'percentage'
+												? 'bg-white text-blue-600 shadow-sm'
+												: 'text-gray-600 hover:text-gray-900'}
+										`}
+										onClick={() => setSplitMode('percentage')}
+									>
+										Percentage
+									</button>
+									<button
+										type="button"
+										className={`px-3 py-2 text-sm font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+											${splitMode === 'custom'
+												? 'bg-white text-blue-600 shadow-sm'
+												: 'text-gray-600 hover:text-gray-900'}
+										`}
+										onClick={() => setSplitMode('custom')}
+									>
+										Custom
+									</button>
+								</div>
 							</div>
-						</div>
+						)}
 
 						{/* Who Paid Section */}
 						<div>
@@ -300,10 +306,14 @@ const EditExpenseModal = ({
 														}
 														className='w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
 														required
+														disabled={allowedPayerIds && allowedPayerIds.length === 1}
 													>
 														<option value=''>Select Person</option>
 														{groupMembers
-															.filter(member => !selectedUserIds.includes(member.id.toString()))
+															.filter(member =>
+																!selectedUserIds.includes(member.id.toString()) &&
+																(!allowedPayerIds || allowedPayerIds.includes(member.id))
+															)
 															.map(member => (
 																<option key={member.id} value={member.id}>
 																	{member.name || member.email}
@@ -359,29 +369,32 @@ const EditExpenseModal = ({
 										</div>
 									);
 								})}
-								<button
-									type='button'
-									onClick={() =>
-										setExpense({
-											...expense,
-											payers: [
-												...expense.payers,
-												{
-													user_id: '',
-													paid_amount: '',
-												},
-											],
-										})
-									}
-									className='w-full sm:w-auto bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-4 py-2 hover:bg-blue-100 text-sm font-medium transition-colors'
-								>
-									+ Add Another Payer
-								</button>
+								{/* Only show + Add Another Payer if not restricted to a single payer (not a settlement) */}
+								{(!allowedPayerIds || allowedPayerIds.length !== 1) && (
+									<button
+										type='button'
+										onClick={() =>
+											setExpense({
+												...expense,
+												payers: [
+													...expense.payers,
+													{
+														user_id: '',
+														paid_amount: '',
+													},
+												],
+											})
+										}
+										className='w-full sm:w-auto bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-4 py-2 hover:bg-blue-100 text-sm font-medium transition-colors'
+									>
+										+ Add Another Payer
+									</button>
+								)}
 							</div>
 						</div>
 
 						{/* Split Among Section - Only for Equal Split */}
-						{splitMode === 'equal' && (
+						{splitMode === 'equal' && !(allowedShareIds && allowedShareIds.length === 1) && (
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-3">Split Among:</label>
 								<div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -414,11 +427,13 @@ const EditExpenseModal = ({
 							<div className="flex items-center justify-between mb-3">
 								<h3 className="text-lg font-semibold text-gray-900">
 									Who Owes
-									<span className="text-sm font-normal text-gray-500 ml-2">
-										{splitMode === 'equal' && '(Equal split)'}
-										{splitMode === 'percentage' && '(Percentage split)'}
-										{splitMode === 'custom' && '(Custom amounts)'}
-									</span>
+									{!(allowedShareIds && allowedShareIds.length === 1) && (
+										<span className="text-sm font-normal text-gray-500 ml-2">
+											{splitMode === 'equal' && '(Equal split)'}
+											{splitMode === 'percentage' && '(Percentage split)'}
+											{splitMode === 'custom' && '(Custom amounts)'}
+										</span>
+									)}
 								</h3>
 							</div>
 							<div className="space-y-3">
@@ -455,11 +470,14 @@ const EditExpenseModal = ({
 														}
 														className='w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
 														required
-														disabled={splitMode !== 'custom'}
+														disabled={allowedShareIds && allowedShareIds.length === 1}
 													>
 														<option value=''>Select Person</option>
 														{groupMembers
-															.filter(member => !selectedUserIds.includes(member.id.toString()))
+															.filter(member =>
+																!selectedUserIds.includes(member.id.toString()) &&
+																(!allowedShareIds || allowedShareIds.includes(member.id))
+															)
 															.map(member => (
 																<option key={member.id} value={member.id}>
 																	{member.name || member.email}
@@ -474,12 +492,10 @@ const EditExpenseModal = ({
 														step='0.01'
 														placeholder='Amount owed'
 														value={share.share_amount}
-														onChange={(e) =>
-															handleShareChange(index, e.target.value)
-														}
+														onChange={(e) => handleShareChange(index, e.target.value)}
 														className='w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-16'
 														required
-														disabled={splitMode !== 'custom'}
+														disabled={(allowedShareIds && allowedShareIds.length === 1) || splitMode !== 'custom'}
 													/>
 													{splitMode === 'percentage' && (
 														<span className="absolute right-3 top-2.5 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{percent}%</span>

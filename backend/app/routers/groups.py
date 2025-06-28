@@ -332,3 +332,46 @@ async def accept_invitation_from_link(
     session.add(invitation)
     session.commit()
     return {"message": "You have successfully joined the group!", "group_id": invitation.group_id}
+
+@router.post("/groups/{group_id}/settle")
+async def settle_up(
+    group_id: int,
+    data: dict = Body(...),  # expects { "to_user_id": int, "amount": float }
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    to_user_id = data.get("to_user_id")
+    amount = data.get("amount")
+    if not to_user_id or not amount or amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid settlement data.")
+
+    # Create a settlement expense
+    expense = Expense(
+        group_id=group_id,
+        description="Settlement",
+        type="settlement",
+        total_amount=amount
+    )
+    session.add(expense)
+    session.commit()
+    session.refresh(expense)
+
+    # Add payer (current user pays)
+    payer = ExpensePayer(
+        expense_id=expense.id,
+        user_id=current_user.id,
+        paid_amount=amount
+    )
+    session.add(payer)
+
+    # Add share (to_user receives)
+    share = ExpenseShare(
+        expense_id=expense.id,
+        user_id=to_user_id,
+        share_amount=amount
+    )
+    session.add(share)
+
+    session.commit()
+    session.refresh(expense)
+    return {"message": "Settlement recorded", "expense_id": expense.id}

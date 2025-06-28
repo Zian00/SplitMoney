@@ -6,7 +6,7 @@ import ConfirmationModal from './ConfirmationModal';
 import { toast } from 'react-toastify';
 import EditExpenseModal from './EditExpenseModal';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPen, faTrash, faArrowLeft, faCalendarAlt, faDollarSign, faUsers, faChartPie } from '@fortawesome/free-solid-svg-icons';
+import { faPen, faTrash, faArrowLeft, faCalendarAlt, faDollarSign, faChartPie } from '@fortawesome/free-solid-svg-icons';
 
 const getInitial = (nameOrEmail) => {
 	if (!nameOrEmail) return '?';
@@ -25,6 +25,7 @@ const ExpenseDetail = () => {
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [showEditExpense, setShowEditExpense] = useState(false);
 	const [editingExpense, setEditingExpense] = useState(null);
+	const [editModalConfig, setEditModalConfig] = useState({});
 
 	// Get the previous page from location state or default to expenses
 	const getBackPath = () => {
@@ -106,6 +107,9 @@ const ExpenseDetail = () => {
 
 	// Handler for edit
 	const handleEdit = () => {
+		const isSettlement = expense.expense.type === "settlement";
+		const payerId = expense.payers[0]?.user_id;
+		const shareId = expense.shares[0]?.user_id;
 		setEditingExpense({
 			id: expense.expense.id,
 			group_id: expense.expense.group_id,
@@ -120,6 +124,14 @@ const ExpenseDetail = () => {
 				share_amount: share.share_amount.toString(),
 			})),
 		});
+		setEditModalConfig(isSettlement
+			? {
+				readOnlyDescription: true,
+				allowedPayerIds: [payerId],
+				allowedShareIds: [shareId],
+			}
+			: {}
+		);
 		setShowEditExpense(true);
 	};
 
@@ -177,6 +189,7 @@ const ExpenseDetail = () => {
 
 	return (
 		<div className='min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100'>
+
 			{/* Header */}
 			<div className='bg-white shadow-sm border-b border-gray-200'>
 				<div className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -186,7 +199,6 @@ const ExpenseDetail = () => {
 							className='flex items-center text-gray-600 hover:text-gray-900 transition-colors'
 						>
 							<FontAwesomeIcon icon={faArrowLeft} className='mr-2' />
-							<span className='hidden sm:inline'>Go Back</span>
 						</button>
 						<h1 className='text-lg font-semibold text-gray-900'>Expense Details</h1>
 						<div className='w-20'></div> {/* Spacer for centering */}
@@ -364,6 +376,7 @@ const ExpenseDetail = () => {
 				onClose={() => {
 					setShowEditExpense(false);
 					setEditingExpense(null);
+					setEditModalConfig({});
 				}}
 				onUpdate={handleUpdateExpense}
 				expense={editingExpense}
@@ -371,6 +384,7 @@ const ExpenseDetail = () => {
 				groupMembers={members}
 				title='Edit Expense'
 				submitText='Update Expense'
+				{...editModalConfig}
 			/>
 
 			{/* Confirmation Modal for Delete */}

@@ -9,6 +9,7 @@ import Navigation from './components/Navigation';
 import Profile from './components/Profile';
 import InvitationHandler from './components/InvitationHandler';
 import ExpenseDetails from './components/ExpenseDetails';
+import ScrollToTop from './components/ScrollToTop';
 
 const App = () => {
 	const { auth } = useAuth();
@@ -17,8 +18,9 @@ const App = () => {
 
 	return (
 		<Router>
+			<ScrollToTop />
 			{auth && <Navigation />}
-			<div className="min-h-screen bg-gray-50">
+			<div className="flex flex-col min-h-screen bg-gray-50 pb-16 md:pb-0">
 				<Routes>
 					{!auth ? (
 						<>

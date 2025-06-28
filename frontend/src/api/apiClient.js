@@ -30,19 +30,29 @@ apiClient.interceptors.response.use(
 			// Token valid, but user deleted	
 			if (detail === "User not found") {
 				toast.error('Account does not exist. Please register or contact support.');
-				//Token expired/invalid
+				localStorage.removeItem('token');
+				localStorage.removeItem('user');
+				setTimeout(() => {
+					window.location.reload();
+				}, 1500);
 			} else if (detail === "Invalid authentication credentials") {
 				toast.error('Session expired, please log in again.');
+				localStorage.removeItem('token');
+				localStorage.removeItem('user');
+				setTimeout(() => {
+					window.location.reload();
+				}, 1500);
 			} else if (detail === "Incorrect email or password") {
 				toast.error('Incorrect email or password.');
+				// Do NOT reload the page here!
 			} else {
 				toast.error(detail || 'Authentication error. Please log in again.');
+				localStorage.removeItem('token');
+				localStorage.removeItem('user');
+				setTimeout(() => {
+					window.location.reload();
+				}, 1500);
 			}
-			localStorage.removeItem('token');
-			localStorage.removeItem('user');
-			setTimeout(() => {
-				window.location.reload();
-			}, 1500); // Give user time to see the toast
 		}
 		return Promise.reject(error);
 	}
