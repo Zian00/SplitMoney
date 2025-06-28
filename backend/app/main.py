@@ -7,9 +7,15 @@ from app.config import settings
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.cleanup import cleanup_expired_invitations
+import logging
+from fastapi.responses import JSONResponse
 
 # Initialize the scheduler
 scheduler = AsyncIOScheduler()
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -56,3 +62,13 @@ app.include_router(expenses.router, prefix="/api", tags=["Expenses"])
 @app.get("/")
 async def root():
     return {"message": "Welcome to SplitMoney API"}
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.error(f"Global exception: {exc}")
+    logger.error(f"Request URL: {request.url}")
+    logger.error(f"Request method: {request.method}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {str(exc)}"}
+    )

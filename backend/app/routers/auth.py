@@ -20,23 +20,29 @@ def get_user_by_email(session: Session, email: str):
 # Register endpoint
 @router.post("/register", response_model=User)
 async def register_user(user_data: UserCreate, session: Session = Depends(get_session)):
-    db_user = get_user_by_email(session, user_data.email)
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    try:
+        print(f"Registering user: {user_data.email}")  # Debug log
+        db_user = get_user_by_email(session, user_data.email)
+        if db_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Extract name from email
-    name = user_data.email.split("@")[0]
-    # Create new user with hashed password
-    user = User(
-        email=user_data.email,
-        name=name,
-        password_hash=pwd_context.hash(user_data.password)
-    )
+        # Extract name from email
+        name = user_data.email.split("@")[0]
+        # Create new user with hashed password
+        user = User(
+            email=user_data.email,
+            name=name,
+            password_hash=pwd_context.hash(user_data.password)
+        )
 
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    return user
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        print(f"User registered successfully: {user.id}")  # Debug log
+        return user
+    except Exception as e:
+        print(f"Registration error: {e}")  # Debug log
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 
 @router.put("/users/me/name")
