@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     frontend_base_url: str = os.getenv(
         "FRONTEND_BASE_URL" if os.getenv("ENVIRONMENT") == "production"
         else "http://localhost:5173",
-        os.getenv("DATABASE_URL_DEV")
+        "http://localhost:5173"  # Correct fallback
     )
 
 
