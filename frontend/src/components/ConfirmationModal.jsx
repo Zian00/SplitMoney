@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect } from 'react';
 
 const ConfirmationModal = ({ 
     isOpen, 
@@ -13,6 +13,21 @@ const ConfirmationModal = ({
     isLoading = false,
     loadingText = "Processing..."
 }) => {
+
+    // Add useEffect to handle body scroll when modal is open
+	useEffect(() => {
+		if (isOpen) {
+			document.body.style.overflow = 'hidden';
+		} else {
+			document.body.style.overflow = 'unset';
+		}
+
+		// Cleanup function to restore scroll when component unmounts
+		return () => {
+			document.body.style.overflow = 'unset';
+		};
+	}, [isOpen]);
+
     if (!isOpen) return null;
 
     const getIcon = () => {

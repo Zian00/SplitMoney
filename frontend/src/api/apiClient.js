@@ -53,24 +53,24 @@ apiClient.interceptors.response.use(
 				localStorage.removeItem('token');
 				localStorage.removeItem('user');
 				setTimeout(() => {
-					window.location.reload();
+					window.location.href = '/login';
 				}, 1500);
 			} else if (detail === "Invalid authentication credentials") {
 				toast.error('Session expired, please log in again.');
 				localStorage.removeItem('token');
 				localStorage.removeItem('user');
 				setTimeout(() => {
-					window.location.reload();
+					window.location.href = '/login';
 				}, 1500);
 			} else if (detail === "Incorrect email or password") {
 				toast.error('Incorrect email or password.');
-				// Do NOT reload the page here!
+				// Do NOT redirect here!
 			} else {
 				toast.error(detail || 'Authentication error. Please log in again.');
 				localStorage.removeItem('token');
 				localStorage.removeItem('user');
 				setTimeout(() => {
-					window.location.reload();
+					window.location.href = '/login';
 				}, 1500);
 			}
 		}

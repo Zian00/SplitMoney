@@ -18,15 +18,17 @@ const EditExpenseModal = ({
 		groupMembers.map(m => m.id.toString())
 	);
 	
+	// Add useEffect to handle body scroll when modal is open
 	useEffect(() => {
 		if (isOpen) {
-			document.body.classList.add('overflow-hidden');
+			document.body.style.overflow = 'hidden';
 		} else {
-			document.body.classList.remove('overflow-hidden');
+			document.body.style.overflow = 'unset';
 		}
-		// Clean up in case modal is unmounted while open
+
+		// Cleanup function to restore scroll when component unmounts
 		return () => {
-			document.body.classList.remove('overflow-hidden');
+			document.body.style.overflow = 'unset';
 		};
 	}, [isOpen]);
 
@@ -147,11 +149,6 @@ const EditExpenseModal = ({
 		});
 		if (splitMode !== 'custom') setSplitMode('custom');
 	};
-
-	const payersDiffer =
-		expense &&
-		expense.payers.length > 1 &&
-		new Set(expense.payers.map((p) => p.paid_amount)).size > 1;
 
 	const { totalAmount, totalPaid, totalShares, remainingShares } =
 		calculateRemainingAmount();

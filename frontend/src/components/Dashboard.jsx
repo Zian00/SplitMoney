@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
+import CreateGroupModal from './CreateGroupModal';
 
 const Dashboard = () => {
 	const { auth } = useAuth();
@@ -11,10 +11,7 @@ const Dashboard = () => {
 	const [groups, setGroups] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
-
 	const [showCreateForm, setShowCreateForm] = useState(false);
-	const [newGroupName, setNewGroupName] = useState('');
-	const [createGroupError, setCreateGroupError] = useState('');
 
 	if (!auth || !auth.user) {
 		return (
@@ -50,21 +47,8 @@ const Dashboard = () => {
 		}
 	};
 
-	const handleCreateGroup = async (e) => {
-		e.preventDefault();
-		setCreateGroupError('');
-		try {
-			await apiClient.post('/api/groups', {
-				name: newGroupName,
-				created_by: user.id,
-			});
-			setNewGroupName('');
-			setShowCreateForm(false);
-			fetchUserGroups();
-			toast.success('Group added!');
-		} catch (err) {
-			setCreateGroupError('Failed to create group');
-		}
+	const handleGroupCreated = () => {
+		fetchUserGroups();
 	};
 
 	if (!user || loading) {
@@ -184,7 +168,7 @@ const Dashboard = () => {
 									</div>
 									<h3 className='text-lg font-medium text-gray-800 mb-2'>No groups yet</h3>
 									<p className='text-gray-500 mb-6 max-w-sm mx-auto'>
-										Get started by creating your first expense group to share costs with friends or family.
+										Get started by creating your first expense group to share costs with friends and family.
 									</p>
 									<button
 										onClick={() => setShowCreateForm(true)}
@@ -234,58 +218,12 @@ const Dashboard = () => {
 			</div>
 
 			{/* Create Group Modal */}
-			{showCreateForm && (
-				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-					<div className='bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all'>
-						<div className='flex items-center gap-3 mb-6'>
-							<div className='w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center'>
-								<svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-								</svg>
-							</div>
-							<h2 className='text-xl font-bold text-gray-800'>Create New Group</h2>
-						</div>
-						<form onSubmit={handleCreateGroup}>
-							<div className='mb-6'>
-								<label className='block text-sm font-medium text-gray-700 mb-2'>
-									Group Name
-								</label>
-								<input
-									type='text'
-									value={newGroupName}
-									onChange={(e) => setNewGroupName(e.target.value)}
-									className='w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200'
-									placeholder='Enter group name...'
-									required
-								/>
-							</div>
-							{createGroupError && (
-								<div className='text-red-500 mb-4 text-sm flex items-center gap-2'>
-									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-									</svg>
-									{createGroupError}
-								</div>
-							)}
-							<div className='flex flex-col sm:flex-row justify-end gap-3'>
-								<button
-									type='button'
-									onClick={() => setShowCreateForm(false)}
-									className='px-6 py-3 text-gray-600 hover:text-gray-800 font-medium rounded-xl hover:bg-gray-100 transition-all duration-200'
-								>
-									Cancel
-								</button>
-								<button
-									type='submit'
-									className='bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-6 rounded-xl font-medium hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-								>
-									Create Group
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			)}
+			<CreateGroupModal
+				isOpen={showCreateForm}
+				onClose={() => setShowCreateForm(false)}
+				onSuccess={handleGroupCreated}
+				userId={user.id}
+			/>
 		</div>
 	);
 };

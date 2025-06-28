@@ -8,15 +8,14 @@ import {
 	faEdit, 
 	faSave, 
 	faTimes, 
-	faCheckCircle,
 	faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
+import { toast } from 'react-toastify';
 
 const Profile = () => {
 	const { auth, setAuth } = useAuth();
 	const [name, setName] = useState(auth.user.name);
 	const [editing, setEditing] = useState(false);
-	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(false);
 
@@ -26,18 +25,14 @@ const Profile = () => {
 			return;
 		}
 
-		setError('');
-		setMessage('');
+		
 		setLoading(true);
 		
 		try {
 			await apiClient.put('/auth/users/me/name', { name: name.trim() });
 			setAuth({ ...auth, user: { ...auth.user, name: name.trim() } });
 			setEditing(false);
-			setMessage('Name updated successfully!');
-			
-			// Clear success message after 3 seconds
-			setTimeout(() => setMessage(''), 3000);
+			toast.success('Name updated successfully!');
 		} catch (err) {
 			setError('Failed to update name. Please try again.');
 		} finally {
@@ -92,20 +87,6 @@ const Profile = () => {
 									className="text-red-400 mr-3 flex-shrink-0" 
 								/>
 								<p className="text-red-700 text-sm sm:text-base">{error}</p>
-							</div>
-						</div>
-					</div>
-				)}
-
-				{message && (
-					<div className="mb-6 mx-auto max-w-2xl">
-						<div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
-							<div className="flex items-center">
-								<FontAwesomeIcon 
-									icon={faCheckCircle} 
-									className="text-green-400 mr-3 flex-shrink-0" 
-								/>
-								<p className="text-green-700 text-sm sm:text-base">{message}</p>
 							</div>
 						</div>
 					</div>
