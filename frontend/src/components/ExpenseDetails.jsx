@@ -26,6 +26,7 @@ const ExpenseDetail = () => {
 	const [showEditExpense, setShowEditExpense] = useState(false);
 	const [editingExpense, setEditingExpense] = useState(null);
 	const [editModalConfig, setEditModalConfig] = useState({});
+	const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
 
 	// Get the previous page from location state or default to expenses
 	const getBackPath = () => {
@@ -138,6 +139,7 @@ const ExpenseDetail = () => {
 	// Handler for updating the expense
 	const handleUpdateExpense = async (e) => {
 		e.preventDefault();
+		setIsExpenseSubmitting(true);
 		try {
 			const expenseData = {
 				description: editingExpense.description,
@@ -167,6 +169,7 @@ const ExpenseDetail = () => {
 		} catch (err) {
 			toast.error('Failed to update expense');
 		} finally {
+			setIsExpenseSubmitting(false);
 			setLoading(false);
 		}
 	};
@@ -385,6 +388,7 @@ const ExpenseDetail = () => {
 				title='Edit Expense'
 				submitText='Update Expense'
 				{...editModalConfig}
+				isSubmitting={isExpenseSubmitting}
 			/>
 
 			{/* Confirmation Modal for Delete */}

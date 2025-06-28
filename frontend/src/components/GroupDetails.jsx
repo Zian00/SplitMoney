@@ -24,7 +24,6 @@ const GroupDetails = () => {
 		payers: [{ user_id: auth?.user?.id || '', paid_amount: '' }],
 		shares: [{ user_id: auth?.user?.id || '', share_amount: '' }],
 	});
-	const [isDeleting, setIsDeleting] = useState(false);
 	const [editGroupMode, setEditGroupMode] = useState(false);
 	const [newGroupName, setNewGroupName] = useState('');
 	const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] = useState(false);
@@ -41,6 +40,7 @@ const GroupDetails = () => {
 	const [showSettleUpModal, setShowSettleUpModal] = useState(false);
 	const [debtToSettle, setDebtToSettle] = useState(null);
 	const [isSettlingUp, setIsSettlingUp] = useState(false);
+	const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
 
 	useEffect(() => {
 		fetchGroupDetails();
@@ -140,7 +140,7 @@ const GroupDetails = () => {
 
 	const handleAddExpense = async (e) => {
 		e.preventDefault();
-
+		setIsExpenseSubmitting(true);
 		try {
 			const expenseData = {
 				...newExpense,
@@ -173,6 +173,8 @@ const GroupDetails = () => {
 		} catch (err) {
 			toast.error('Failed to add expense');
 			console.error('Error adding expense:', err);
+		} finally {
+			setIsExpenseSubmitting(false);
 		}
 	};
 
@@ -757,6 +759,7 @@ const GroupDetails = () => {
 				groupMembers={groupMembers}
 				title='Add New Expense'
 				submitText='Add Expense'
+				isSubmitting={isExpenseSubmitting}
 			/>
 
 			{/* Edit Group Modal */}

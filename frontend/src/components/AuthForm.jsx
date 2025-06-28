@@ -102,6 +102,18 @@ const AuthForm = () => {
 				}
 			}
 		} catch (err) {
+			const status = err?.response?.status;
+			const detail = err?.response?.data?.detail;
+			// Only show toast if not handled by interceptor (i.e., not 401)
+			if (status !== 401) {
+				if (detail && detail.includes("Email already registered")) {
+					toast.error("An account with this email is already registered.");
+				} else if (detail) {
+					toast.error(detail);
+				} else {
+					toast.error("Registration failed. Please try again.");
+				}
+			}
 			console.error('Auth error:', err);
 		} finally {
 			setIsLoading(false);
