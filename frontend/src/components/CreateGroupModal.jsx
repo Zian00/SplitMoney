@@ -42,7 +42,7 @@ const CreateGroupModal = ({ isOpen, onClose, onSuccess, userId }) => {
 			onSuccess();
 			toast.success('Group created successfully!');
 		} catch (err) {
-            toast.err('Failed to create group');
+			toast.error('Failed to create group');
 			console.error('Error creating group:', err);
 		} finally {
 			setIsLoading(false);
