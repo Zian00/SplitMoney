@@ -140,6 +140,14 @@
             left: 100%;
         }
         
+        .button-text-light {
+            display: inline;
+        }
+        
+        .button-text-dark {
+            display: none;
+        }
+        
         .expiry-notice {
             background: #fff5f5;
             border: 1px solid #fed7d7;
@@ -277,6 +285,14 @@
             .group-name {
                 color: #f7fafc;
             }
+            
+            .button-text-light {
+                display: none;
+            }
+            
+            .button-text-dark {
+                display: inline;
+            }
         }
     </style>
 </head>
@@ -306,21 +322,24 @@
                 
                 <div class="features">
                     <div class="feature">
-                        <div class="feature-icon">📊</div>
+                        <div class="feature-icon">📈</div>
                         <div class="feature-text">Track Expenses</div>
                     </div>
                     <div class="feature">
-                        <div class="feature-icon">⚖️</div>
+                        <div class="feature-icon">🔄</div>
                         <div class="feature-text">Split Bills</div>
                     </div>
                     <div class="feature">
-                        <div class="feature-icon">💳</div>
+                        <div class="feature-icon">💰</div>
                         <div class="feature-text">Settle Up</div>
                     </div>
                 </div>
                 
                 <div class="button-container">
-                    <a href="{{ invite_link }}" class="button">Join the Group</a>
+                    <a href="{{ invite_link }}" class="button">
+                        <span class="button-text-light">Join the Group</span>
+                        <span class="button-text-dark">Join Group</span>
+                    </a>
                 </div>
                 
                 <div class="expiry-notice">
@@ -331,7 +350,7 @@
             
             <div class="footer">
                 <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-                <p>Need help? Contact our support team at support@splitmoney.com</p>
+                <p>Need help? Contact our support team at splitmoney00@gmail.com</p>
                 <p class="copyright">&copy; 2025 SplitMoney. All rights reserved.</p>
             </div>
         </div>
