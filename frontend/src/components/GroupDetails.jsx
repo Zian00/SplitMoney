@@ -34,7 +34,6 @@ const GroupDetails = () => {
 	const isCreator = auth?.user?.id === group?.created_by;
 	const [inviteEmail, setInviteEmail] = useState('');
 	const [inviteLoading, setInviteLoading] = useState(false);
-	const [inviteError, setInviteError] = useState('');
 	const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
 	const [isDeletingGroup, setIsDeletingGroup] = useState(false);
 	const [showSettleUpModal, setShowSettleUpModal] = useState(false);
@@ -225,7 +224,7 @@ const GroupDetails = () => {
 		} catch (err) {
 			const errDetail = err.response;
 			console.log(errDetail);
-			setInviteError(errDetail || 'Failed to send invite');
+			
 			toast.error(err.response?.data?.detail || 'Failed to send invite');
 		} finally {
 			setInviteLoading(false);
@@ -647,7 +646,6 @@ const GroupDetails = () => {
 											)}
 										</button>
 									</div>
-									{inviteError && <div className='text-red-600 text-sm bg-red-50 p-2 rounded-lg'>{inviteError}</div>}
 								</form>
 							)}
 

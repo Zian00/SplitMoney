@@ -22,8 +22,8 @@ async def lifespan(app: FastAPI):
     if settings.debug:
         print("Debug mode enabled")
     
-    # Add the cleanup job to the scheduler to run once every day
-    scheduler.add_job(cleanup_expired_invitations, 'interval', days=30, id="cleanup_job")
+    # Add the cleanup job to the scheduler to run once every 2 day
+    scheduler.add_job(cleanup_expired_invitations, 'interval', days=2, id="cleanup_job")
     # Start the scheduler
     scheduler.start()
     print("Scheduler started. Cleanup job is scheduled.")

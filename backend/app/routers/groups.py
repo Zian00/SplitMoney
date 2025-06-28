@@ -3,7 +3,7 @@ from sqlmodel import Session, select, delete
 from typing import List
 from app.database import get_session
 from app.deps import get_current_user
-from app.models import Group, User, Membership, UserCreate, Expense, ExpensePayer, ExpenseShare, GroupInvitation
+from app.models import Group, User, Membership, Expense, ExpensePayer, ExpenseShare, GroupInvitation
 from app.schemas import Debt, UserInfo # Import new schemas
 from sqlalchemy.orm import selectinload
 from app.mail_utils import fast_mail
@@ -240,9 +240,9 @@ async def get_group_summary(
 async def invite_user_to_group(
     group_id: int,
     background_tasks: BackgroundTasks,
-    data: dict = Body(...),  # expects {"email": "invitee@example.com"}
+    data: dict = Body(...),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+  
 ):
     invitee_email = data.get("email")
     if not invitee_email:
@@ -252,6 +252,34 @@ async def invite_user_to_group(
     group = session.get(Group, group_id)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
+
+    # Check if user with the invitee's email exists
+    invitee_user = session.exec(select(User).where(User.email == invitee_email)).first()
+    
+    if invitee_user:
+        # Check if already a member
+        membership = session.exec(
+            select(Membership).where(
+                Membership.group_id == group_id,
+                Membership.user_id == invitee_user.id
+            )
+        ).first()
+
+        if membership:
+            raise HTTPException(status_code=400, detail="User is already a member of the group")
+        
+    # Check if there's already any invitation for this email and group (pending or accepted)
+    existing_invitation = session.exec(
+        select(GroupInvitation).where(
+            GroupInvitation.group_id == group_id,
+            GroupInvitation.invitee_email == invitee_email
+        )
+    ).first()
+    
+    if existing_invitation:
+        if existing_invitation.status == "pending":
+            raise HTTPException(status_code=400, detail="An invitation has already been sent to this email")
+        
 
     # This is the important part. By accessing group.creator here, we ensure the relationship is loaded
     # before the background task runs and the session is closed.
