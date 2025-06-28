@@ -1,8 +1,28 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
+
+// Environment detection and dynamic base URL
+const getBaseURL = () => {
+	// Check if we're in development (localhost) or production
+	const isDevelopment = window.location.hostname === 'localhost' || 
+						 window.location.hostname === '127.0.0.1' ||
+						 window.location.hostname.includes('localhost');
+	
+	// Use environment variables if available, otherwise fallback to detection
+	if (import.meta.env.VITE_API_URL_PROD && import.meta.env.VITE_API_URL_DEV) {
+		return isDevelopment ? import.meta.env.VITE_API_URL_DEV : import.meta.env.VITE_API_URL_PROD;
+	}
+	
+	// Fallback URLs if environment variables are not set
+	const devURL = 'http://localhost:8000';
+	const prodURL = 'https://splimoney-backend.vercel.app'; // Replace with your actual Vercel URL
+	
+	return isDevelopment ? devURL : prodURL;
+};
+
 const apiClient = axios.create({
-	baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+	baseURL: getBaseURL(),
 	headers: {
 		'Content-Type': 'application/json',
 	},
