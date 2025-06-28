@@ -30,14 +30,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="SplitMoney API", lifespan=lifespan)
 
-# Configure CORS for frontend - update with your Vercel frontend URL
+# Dynamic CORS origins based on environment
+cors_origins = [
+    "http://localhost:5173", 
+    "http://localhost:3000",
+]
+
+# Add production frontend URL if in production
+if settings.environment == "production":
+    cors_origins.append("https://split-money-seven.vercel.app")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173", 
-        "http://localhost:3000",
-        "https://split-money-seven.vercel.app"  # Update this with your actual frontend URL
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -25,6 +25,8 @@ class Settings(BaseSettings):
         else "http://localhost:5173",
         "http://localhost:5173"  # Correct fallback
     )
+    # Add environment setting
+    environment: str = os.getenv("ENVIRONMENT", "development")
 
 
 # Create settings instance
