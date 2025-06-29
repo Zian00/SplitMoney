@@ -47,7 +47,7 @@ const CreateGroupModal = ({ isOpen, onClose, onSuccess, userId }) => {
 			toast.success('Group created successfully!');
 			
 			// Redirect to the new group's details page
-			navigate(`/groups/${newGroup.id}`);
+			navigate(`/groups`);
 		} catch (err) {
 			toast.error('Failed to create group');
 			console.error('Error creating group:', err);
