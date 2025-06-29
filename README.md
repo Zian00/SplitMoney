@@ -1,5 +1,7 @@
 # SplitMoney
 
+[![Live Website](https://img.shields.io/badge/Live%20Website-Click%20Here-brightgreen?style=for-the-badge)](https://split-money-seven.vercel.app)
+
 **SplitMoney** is a modern web application for splitting expenses, managing groups, and settling up with friends and family.  
 It consists of a React + Vite frontend and a FastAPI + PostgreSQL backend.
 
