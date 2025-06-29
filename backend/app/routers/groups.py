@@ -139,12 +139,38 @@ async def delete_group(
     if group.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this group")
 
-    # Delete related memberships
+    # Get all expenses for this group
+    expenses = session.exec(
+        select(Expense).where(Expense.group_id == group_id)
+    ).all()
+    
+    expense_ids = [exp.id for exp in expenses]
+
+    # Delete related expense shares and payers FIRST (child records)
+    if expense_ids:
+        session.exec(
+            delete(ExpenseShare).where(ExpenseShare.expense_id.in_(expense_ids))
+        )
+        session.exec(
+            delete(ExpensePayer).where(ExpensePayer.expense_id.in_(expense_ids))
+        )
+    
+    # Delete expenses (parent records)
+    session.exec(
+        delete(Expense).where(Expense.group_id == group_id)
+    )
+
+    # Delete memberships
     session.exec(
         delete(Membership).where(Membership.group_id == group_id)
     )
 
-    # Delete the group
+    # Delete group invitations
+    session.exec(
+        delete(GroupInvitation).where(GroupInvitation.group_id == group_id)
+    )
+
+    # Finally, delete the group
     session.delete(group)
     session.commit()
 

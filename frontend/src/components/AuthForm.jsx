@@ -111,6 +111,7 @@ const AuthForm = () => {
 				} else if (detail) {
 					toast.error(detail);
 				} else {
+					console.log(detail);
 					toast.error("Registration failed. Please try again.");
 				}
 			}

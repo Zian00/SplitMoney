@@ -1,7 +1,10 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
 from sqlalchemy import Column, TIMESTAMP
+
+if TYPE_CHECKING:
+    from .models import Group, Membership, Expense, ExpensePayer, ExpenseShare
 
 
 class User(SQLModel, table=True):
@@ -28,6 +31,7 @@ class User(SQLModel, table=True):
     # Expenses where this user owes money.
     expense_shares: List["ExpenseShare"] = Relationship(back_populates="user")
 
+
 class Group(SQLModel, table=True):
     __tablename__ = "groups"
 
@@ -47,6 +51,7 @@ class Group(SQLModel, table=True):
 
     # Expenses recorded in this group.
     expenses: List["Expense"] = Relationship(back_populates="group")
+
 
 # Membership Table → joins User and Group
 # Tracks which users are members of which groups
@@ -137,4 +142,4 @@ class GroupInvitation(SQLModel, table=True):
         sa_column=Column(TIMESTAMP(timezone=True), nullable=False),
     )
 
-    group: Group = Relationship() # We can define the back_populates if needed
+    group: Group = Relationship()
