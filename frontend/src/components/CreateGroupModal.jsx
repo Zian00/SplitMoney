@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 
@@ -6,6 +7,7 @@ const CreateGroupModal = ({ isOpen, onClose, onSuccess, userId }) => {
 	const [newGroupName, setNewGroupName] = useState('');
 	const [createGroupError, setCreateGroupError] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
+	const navigate = useNavigate();
 
 	// Add useEffect to handle body scroll when modal is open
 	useEffect(() => {
@@ -33,14 +35,19 @@ const CreateGroupModal = ({ isOpen, onClose, onSuccess, userId }) => {
 		setIsLoading(true);
 
 		try {
-			await apiClient.post('/api/groups', {
+			const response = await apiClient.post('/api/groups', {
 				name: newGroupName,
 				created_by: userId,
 			});
+			
+			const newGroup = response.data;
 			setNewGroupName('');
 			onClose();
 			onSuccess();
 			toast.success('Group created successfully!');
+			
+			// Redirect to the new group's details page
+			navigate(`/groups/${newGroup.id}`);
 		} catch (err) {
 			toast.error('Failed to create group');
 			console.error('Error creating group:', err);

@@ -8,6 +8,7 @@ from datetime import timedelta
 from app.auth_utils import create_access_token
 from app.config import settings
 from app.deps import get_current_user
+import re
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -80,3 +81,27 @@ async def login_for_access_token(
             status_code=401, detail="Incorrect email or password")
     access_token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.put("/users/me/password")
+async def change_password(
+    data: dict = Body(...),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    new_password = data.get("new_password")
+    if not new_password:
+        raise HTTPException(status_code=400, detail="New password is required")
+    
+    # Validate password strength
+    if (len(new_password) < 8 or
+        not re.search(r'[A-Z]', new_password) or
+        not re.search(r'[a-z]', new_password) or
+        not re.search(r'\d', new_password)):
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters and include uppercase, lowercase, and a digit.")
+    
+    # Update password
+    current_user.password_hash = pwd_context.hash(new_password)
+    session.add(current_user)
+    session.commit()
+    
+    return {"message": "Password updated successfully"}
