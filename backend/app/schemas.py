@@ -64,3 +64,20 @@ class ExpenseWithDetailsOut(BaseModel):
     created_at: str
     payers: List[ExpensePayerOut]
     shares: List[ExpenseShareOut]
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator('new_password')
+    @classmethod
+    def password_strong(cls, v):
+        if (len(v) < 8 or
+            not re.search(r'[A-Z]', v) or
+            not re.search(r'[a-z]', v) or
+            not re.search(r'\d', v)):
+            raise ValueError('Password must be at least 8 characters and include uppercase, lowercase, and a digit.')
+        return v

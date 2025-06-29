@@ -282,6 +282,19 @@ const AuthForm = () => {
 							)}
 						</div>
 
+						{/* Forgot Password Link - Add this after the password field */}
+						{mode === 'login' && (
+							<div className="text-right">
+								<button
+									type="button"
+									onClick={() => navigate('/forgot-password')}
+									className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
+								>
+									Forgot your password?
+								</button>
+							</div>
+						)}
+
 						{/* Submit Button */}
 						<button
 							type="submit"

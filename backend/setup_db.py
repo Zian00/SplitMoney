@@ -12,7 +12,7 @@ def main():
     try:
         print("Dropping all existing tables...")
         # Import all your models here so the metadata knows about them
-        from app.models import User, Group, Membership, Expense, ExpensePayer, ExpenseShare, GroupInvitation
+        from app.models import User, Group, Membership, Expense, ExpensePayer, ExpenseShare, GroupInvitation, PasswordResetToken
         SQLModel.metadata.drop_all(engine)
         print("Tables dropped.")
         

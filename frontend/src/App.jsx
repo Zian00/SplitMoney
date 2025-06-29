@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AuthForm from './components/AuthForm';
+import ForgotPasswordForm from './components/ForgotPasswordForm';
+import ResetPasswordForm from './components/ResetPasswordForm';
 import Dashboard from './components/Dashboard';
 import Groups from './components/Groups';
 import GroupDetails from './components/GroupDetails';
@@ -25,6 +27,8 @@ const App = () => {
 					{!auth ? (
 						<>
 							<Route path="/login" element={<AuthForm />} />
+							<Route path="/forgot-password" element={<ForgotPasswordForm />} />
+							<Route path="/reset-password/:token" element={<ResetPasswordForm />} />
 							<Route path="*" element={<Navigate to="/login" replace />} />
 						</>
 					) : (
