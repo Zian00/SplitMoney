@@ -14,6 +14,7 @@ const GroupDetails = () => {
 	const location = useLocation();
 	const { auth } = useAuth();
 	const [group, setGroup] = useState(null);
+	const [groupLoading, setGroupLoading] = useState(true);
 	const [expenses, setExpenses] = useState([]);
 	const [groupMembers, setGroupMembers] = useState([]);
 	const [loading, setLoading] = useState(true);
@@ -49,12 +50,17 @@ const GroupDetails = () => {
 	}, [groupId]);
 
 	const fetchGroupDetails = async () => {
+		setGroupLoading(true);
 		try {
 			const response = await apiClient.get(`/api/groups/${groupId}`);
 			setGroup(response.data);
 		} catch (err) {
-			toast.error('Failed to load group details');
 			console.error('Error fetching group:', err);
+			setGroup(null);
+			toast.error('Failed to load group details');
+			setTimeout(() => navigate('/groups'), 2000);
+		} finally {
+			setGroupLoading(false);
 		}
 	};
 
@@ -256,7 +262,7 @@ const GroupDetails = () => {
 		}
 	};
 
-	if (loading) {
+	if (groupLoading) {
 		return (
 			<div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
 				<div className="text-center">

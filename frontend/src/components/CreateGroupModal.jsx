@@ -95,19 +95,19 @@ const CreateGroupModal = ({ isOpen, onClose, onSuccess, userId }) => {
 						</p>
 					</div>
 
-					<div className='flex flex-col sm:flex-row justify-end gap-3'>
+					<div className='flex flex-col-reverse sm:flex-row justify-end items-stretch sm:items-end gap-3 mt-8'>
 						<button
 							type='button'
 							onClick={handleCancel}
 							disabled={isLoading}
-							className='px-6 py-3 text-gray-600 hover:text-gray-800 font-medium rounded-xl hover:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
+							className='w-full sm:w-auto px-6 py-3 text-gray-600 hover:text-gray-800 font-medium rounded-xl hover:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
 						>
 							Cancel
 						</button>
 						<button
 							type='submit'
 							disabled={isLoading || !newGroupName.trim()}
-							className='bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-6 rounded-xl font-medium hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-lg'
+							className='w-full sm:w-auto bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-6 rounded-xl font-medium hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-lg'
 						>
 							{isLoading ? (
 								<>

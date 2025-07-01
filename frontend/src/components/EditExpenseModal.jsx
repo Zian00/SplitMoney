@@ -162,14 +162,14 @@ const EditExpenseModal = ({
 
 	return (
 		<div
-			className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4"
+			className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
 			style={{
 				background: 'hsla(220, 9%, 46%, 0.75)',
 				backdropFilter: 'blur(4px)',
 				WebkitBackdropFilter: 'blur(4px)',
 			}}
 		>
-			<div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+			<div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl max-h-[75vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
 				{/* Header */}
 				<div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 border-b border-gray-100">
 					<div className="flex items-center justify-between">
