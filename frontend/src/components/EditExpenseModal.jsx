@@ -54,36 +54,6 @@ const EditExpenseModal = ({
 		return shares;
 	};
 
-	const calculatePercentageShares = () => {
-		const totalAmount = parseFloat(expense.total_amount || 0);
-		const validPayers = expense.payers.filter(
-			(payer) => payer.user_id && payer.paid_amount
-		);
-		const totalPaid = validPayers.reduce(
-			(sum, payer) => sum + parseFloat(payer.paid_amount),
-			0
-		);
-		if (totalPaid === 0) return [];
-		const percentageShares = validPayers.map((payer) => {
-			const percentage = parseFloat(payer.paid_amount) / totalPaid;
-			const share = totalAmount * percentage;
-			return Math.round(share * 100) / 100;
-		});
-		const totalCalculated = percentageShares.reduce(
-			(sum, share) => sum + share,
-			0
-		);
-		const difference = totalAmount - totalCalculated;
-		if (Math.abs(difference) > 0.001) {
-			percentageShares[0] =
-				Math.round((percentageShares[0] + difference) * 100) / 100;
-		}
-		return validPayers.map((payer, index) => ({
-			user_id: payer.user_id,
-			share_amount: percentageShares[index].toFixed(2),
-		}));
-	};
-
 	const calculateRemainingAmount = () => {
 		if (!expense) {
 			return {
@@ -130,12 +100,6 @@ const EditExpenseModal = ({
 					share_amount: equalShares[index].toFixed(2),
 				})),
 			});
-		} else if (splitMode === 'percentage') {
-			const newShares = calculatePercentageShares();
-			setExpense({
-				...expense,
-				shares: newShares,
-			});
 		}
 		// Don't auto-calculate for custom
 		// eslint-disable-next-line
@@ -157,6 +121,13 @@ const EditExpenseModal = ({
 	const isBalanced =
 		Math.abs(totalPaid - totalAmount) < 0.01 &&
 		Math.abs(totalShares - totalAmount) < 0.01;
+
+	const getSharePercent = (shareAmount) => {
+		const totalAmount = parseFloat(expense.total_amount || 0);
+		if (!totalAmount) return '0.0';
+		const percent = (parseFloat(shareAmount || 0) / totalAmount) * 100;
+		return percent.toFixed(1);
+	};
 
 	if (!isOpen || !expense) return null;
 
@@ -234,7 +205,7 @@ const EditExpenseModal = ({
 						{!(allowedShareIds && allowedShareIds.length === 1) && (
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-3">Split Type</label>
-								<div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
+								<div className="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-lg">
 									<button
 										type="button"
 										className={`px-3 py-2 text-sm font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
@@ -245,17 +216,6 @@ const EditExpenseModal = ({
 										onClick={() => setSplitMode('equal')}
 									>
 										Equal
-									</button>
-									<button
-										type="button"
-										className={`px-3 py-2 text-sm font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
-											${splitMode === 'percentage'
-												? 'bg-white text-blue-600 shadow-sm'
-												: 'text-gray-600 hover:text-gray-900'}
-										`}
-										onClick={() => setSplitMode('percentage')}
-									>
-										Percentage
 									</button>
 									<button
 										type="button"
@@ -288,7 +248,7 @@ const EditExpenseModal = ({
 										<div key={index} className='bg-gray-50 rounded-lg p-3 border border-gray-200'>
 											<div className="flex flex-col sm:flex-row gap-3">
 												<div className="flex-1">
-													<label className="block text-xs font-medium text-gray-600 mb-1 sm:hidden">Person</label>
+													<label className="block text-xs font-medium text-gray-600 mb-1 sm:hidden">Person {index + 1}</label>
 													<select
 														value={payer.user_id}
 														onChange={(e) =>
@@ -320,26 +280,27 @@ const EditExpenseModal = ({
 													</select>
 												</div>
 												<div className="flex-1">
-													<label className="block text-xs font-medium text-gray-600 mb-1 sm:hidden">Amount Paid</label>
+													<label className="block text-xs font-medium text-gray-600 mb-1 sm:hidden">Amount Paid ($)</label>
 													<input
 														type='number'
 														step='0.01'
 														placeholder='Amount paid'
 														value={payer.paid_amount}
-														onChange={(e) =>
-															setExpense({
-																...expense,
-																payers: expense.payers.map(
-																	(p, i) =>
-																		i === index
-																			? {
-																					...p,
-																					paid_amount: e.target.value,
-																			  }
-																			: p
-																),
-															})
-														}
+														onChange={(e) => {
+															const value = e.target.value;
+															// Allow only numbers and at most one decimal point
+															if (/^\d*\.?\d{0,2}$/.test(value) || value === "") {
+																setExpense({
+																	...expense,
+																	payers: expense.payers.map(
+																		(p, i) =>
+																			i === index
+																				? { ...p, paid_amount: value }
+																				: p
+																	),
+																});
+															}
+														}}
 														className='w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
 														required
 													/>
@@ -428,7 +389,6 @@ const EditExpenseModal = ({
 									{!(allowedShareIds && allowedShareIds.length === 1) && (
 										<span className="text-sm font-normal text-gray-500 ml-2">
 											{splitMode === 'equal' && '(Equal split)'}
-											{splitMode === 'percentage' && '(Percentage split)'}
 											{splitMode === 'custom' && '(Custom amounts)'}
 										</span>
 									)}
@@ -449,7 +409,7 @@ const EditExpenseModal = ({
 										<div key={index} className='bg-gray-50 rounded-lg p-3 border border-gray-200'>
 											<div className="flex flex-col sm:flex-row gap-3">
 												<div className="flex-1">
-													<label className="block text-xs font-medium text-gray-600 mb-1 sm:hidden">Person</label>
+													<label className="block text-xs font-medium text-gray-600 mb-1 sm:hidden">Person {index + 1}</label>
 													<select
 														value={share.user_id}
 														onChange={(e) =>
@@ -484,20 +444,42 @@ const EditExpenseModal = ({
 													</select>
 												</div>
 												<div className="flex-1 relative">
-													<label className="block text-xs font-medium text-gray-600 mb-1 sm:hidden">Amount Owed</label>
+													<label className="block text-xs font-medium text-gray-600 mb-1 sm:hidden">Amount Owed ($)</label>
 													<input
 														type='number'
 														step='0.01'
 														placeholder='Amount owed'
 														value={share.share_amount}
-														onChange={(e) => handleShareChange(index, e.target.value)}
-														className='w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-16'
+														onChange={(e) => {
+															const value = e.target.value;
+															// Allow only numbers and at most one decimal point, up to 2 decimals
+															if (/^\d*\.?\d{0,2}$/.test(value) || value === "") {
+																handleShareChange(index, value);
+															}
+														}}
+														className='w-full p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-20'
 														required
 														disabled={(allowedShareIds && allowedShareIds.length === 1) || splitMode !== 'custom'}
 													/>
-													{splitMode === 'percentage' && (
-														<span className="absolute right-3 top-2.5 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{percent}%</span>
-													)}
+													<span
+														className="
+															absolute 
+															top-10
+															sm:top-1/2
+															-translate-y-1/2 
+															right-4
+															text-xs 
+															text-gray-500 
+															bg-gray-100 
+															px-2 
+															py-1 
+															rounded 
+															whitespace-nowrap
+															pointer-events-none
+														"
+													>
+														{getSharePercent(share.share_amount)}%
+													</span>
 												</div>
 												{splitMode === 'custom' && expense.shares.length > 1 && (
 													<div className="flex-shrink-0">
