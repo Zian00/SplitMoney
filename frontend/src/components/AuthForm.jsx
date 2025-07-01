@@ -4,11 +4,11 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/apiClient';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash, faUser, faLock, faEnvelope, faSpinner, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faEyeSlash, faUser, faLock, faEnvelope, faSpinner, faCheck, faTimes, faUserPlus } from '@fortawesome/free-solid-svg-icons';
 
-const AuthForm = () => {
+const AuthForm = ({ mode = "login" }) => {
 	const location = useLocation();
-	const [mode, setMode] = useState(location.state?.defaultMode || 'login');
+	const [modeState, setModeState] = useState(location.state?.defaultMode || mode);
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
@@ -16,6 +16,26 @@ const AuthForm = () => {
 	const [passwordTouched, setPasswordTouched] = useState(false);
 	const { setAuth } = useAuth();
 	const navigate = useNavigate();
+	const isLogin = modeState === "login";
+
+	// Choose colors/icons based on mode
+	const bgGradient = isLogin
+		? "from-blue-100 via-indigo-100 to-purple-100"
+		: "from-green-100 via-lime-100 to-yellow-100";
+	const cardBorder = isLogin
+		? "border-blue-200 shadow-blue-100"
+		: "border-green-200 shadow-green-100";
+	const headerIcon = isLogin ? faUser : faUserPlus;
+	const headerIconBg = isLogin
+		? "bg-gradient-to-br from-blue-600 to-indigo-600"
+		: "bg-gradient-to-br from-green-500 to-lime-500";
+	const headerText = isLogin ? "text-blue-700" : "text-green-700";
+	const buttonColor = isLogin
+		? "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+		: "bg-green-600 hover:bg-green-700 focus:ring-green-500";
+	const toggleLinkColor = isLogin
+		? "text-green-700 hover:text-green-800"
+		: "text-blue-700 hover:text-blue-800";
 
 	// Apply background to body when component mounts
 	useEffect(() => {
@@ -33,7 +53,7 @@ const AuthForm = () => {
 	const toggleMode = () => {
 		setPassword('');
 		setPasswordTouched(false);
-		setMode((prev) => (prev === 'login' ? 'register' : 'login'));
+		setModeState((prev) => (prev === 'login' ? 'register' : 'login'));
 	};
 
 	// Helper to decode JWT payload
@@ -90,7 +110,7 @@ const AuthForm = () => {
 		setIsLoading(true);
 
 		try {
-			if (mode === 'login') {
+			if (modeState === 'login') {
 				await handleLoginFlow(email, password);
 			} else {
 				// Register the user
@@ -144,7 +164,7 @@ const AuthForm = () => {
 	const allPasswordChecksValid = passwordChecks.every(check => check.isValid);
 
 	return (
-		<div className="min-h-screen flex items-center justify-center p-4">
+		<div className={`min-h-screen flex items-center justify-center p-4 bg-gradient-to-br ${bgGradient} transition-colors duration-500`}>
 			{/* Background decoration */}
 			<div className="fixed inset-0 overflow-hidden pointer-events-none">
 				<div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
@@ -153,17 +173,17 @@ const AuthForm = () => {
 
 			<div className="w-full max-w-md relative z-10">
 				{/* Main Card */}
-				<div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 sm:p-8 lg:p-10">
+				<div className={`bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border-2 ${cardBorder} p-6 sm:p-8 lg:p-10 transition-all duration-500`}>
 					{/* Header */}
 					<div className="text-center mb-6 sm:mb-8">
-						<div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl mb-4 shadow-lg">
-							<FontAwesomeIcon icon={faUser} className="text-white text-xl sm:text-2xl" />
+						<div className={`inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 ${headerIconBg} rounded-2xl mb-4 shadow-lg transition-all duration-500`}>
+							<FontAwesomeIcon icon={headerIcon} className="text-white text-xl sm:text-2xl" />
 						</div>
-						<h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-							{mode === 'login' ? 'Welcome Back' : 'Create Account'}
+						<h1 className={`text-2xl sm:text-3xl font-bold mb-2 ${headerText} transition-colors duration-500`}>
+							{isLogin ? 'Welcome Back' : 'Create Account'}
 						</h1>
 						<p className="text-sm sm:text-base text-gray-600 leading-relaxed">
-							{mode === 'login' 
+							{isLogin 
 								? 'Sign in to your account to continue' 
 								: 'Join us and start managing your expenses'
 							}
@@ -229,7 +249,7 @@ const AuthForm = () => {
 							</div>
 
 							{/* Password Requirements - Only show in register mode */}
-							{mode === 'register' && passwordTouched && (
+							{modeState === 'register' && passwordTouched && (
 								<div className="mt-3 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
 									<p className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Password Requirements:</p>
 									<div className="space-y-1.5 sm:space-y-2">
@@ -283,7 +303,7 @@ const AuthForm = () => {
 						</div>
 
 						{/* Forgot Password Link - Add this after the password field */}
-						{mode === 'login' && (
+						{modeState === 'login' && (
 							<div className="text-right">
 								<button
 									type="button"
@@ -298,16 +318,21 @@ const AuthForm = () => {
 						{/* Submit Button */}
 						<button
 							type="submit"
-							disabled={isLoading || (mode === 'register' && passwordTouched && !allPasswordChecksValid)}
-							className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-lg text-sm sm:text-base"
+							disabled={isLoading || (modeState === 'register' && passwordTouched && !allPasswordChecksValid)}
+							className={`
+								w-full py-3 rounded-lg font-semibold text-lg transition-colors
+								${buttonColor}
+								text-white
+								focus:outline-none focus:ring-2 focus:ring-offset-2
+							`}
 						>
 							{isLoading ? (
 								<div className="flex items-center justify-center">
 									<FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
-									{mode === 'login' ? 'Signing In...' : 'Creating Account...'}
+									{isLogin ? 'Signing In...' : 'Creating Account...'}
 								</div>
 							) : (
-								mode === 'login' ? 'Sign In' : 'Create Account'
+								isLogin ? 'Sign In' : 'Create Account'
 							)}
 						</button>
 					</form>
@@ -315,17 +340,14 @@ const AuthForm = () => {
 					{/* Toggle Mode */}
 					<div className="mt-6 sm:mt-8 text-center">
 						<p className="text-sm sm:text-base text-gray-600 mb-2">
-							{mode === 'login' 
-								? "Don't have an account?" 
-								: 'Already have an account?'
-							}
+							{isLogin ? "Don't have an account?" : 'Already have an account?'}
 						</p>
 						<button
 							onClick={toggleMode}
 							disabled={isLoading}
-							className="font-semibold text-blue-600 hover:text-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base underline decoration-2 underline-offset-2 hover:decoration-blue-700"
+							className={`font-semibold underline decoration-2 underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base ${toggleLinkColor} transition-colors`}
 						>
-							{mode === 'login' ? 'Create an account' : 'Sign in instead'}
+							{isLogin ? 'Create an account' : 'Sign in instead'}
 						</button>
 					</div>
 				</div>

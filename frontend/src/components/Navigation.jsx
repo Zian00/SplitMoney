@@ -6,28 +6,16 @@ import {
 	faHome, 
 	faUsers, 
 	faReceipt, 
-	faSignOutAlt,
-	faBars,
-	faTimes
 } from '@fortawesome/free-solid-svg-icons';
-import { useState } from 'react';
 
 const Navigation = () => {
 	const { auth, setAuth } = useAuth();
 	const user = auth?.user;
 	const navigate = useNavigate();
 	const location = useLocation();
-	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-	const handleLogout = () => {
-		setAuth(null);
-		navigate('/');
-		setIsMobileMenuOpen(false);
-	};
 
-	const toggleMobileMenu = () => {
-		setIsMobileMenuOpen(!isMobileMenuOpen);
-	};
+	
 
 	const isActive = (path) => {
 		return location.pathname === path;
@@ -89,13 +77,6 @@ const Navigation = () => {
 								</div>
 								<span className='font-medium'>{user.name}</span>
 							</Link>
-							<button
-								onClick={handleLogout}
-								className='flex items-center space-x-2 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-md hover:shadow-lg'
-							>
-								<FontAwesomeIcon icon={faSignOutAlt} className='w-4 h-4' />
-								<span>Logout</span>
-							</button>
 						</div>
 					</div>
 				</div>

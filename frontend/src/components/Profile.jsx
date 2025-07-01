@@ -21,6 +21,7 @@ const Profile = () => {
 	const [editing, setEditing] = useState(false);
 	const [loading, setLoading] = useState(false);
 
+
 	// Password change states
 	const [showChangePassword, setShowChangePassword] = useState(false);
 	const [currentPassword, setCurrentPassword] = useState('');
@@ -37,6 +38,12 @@ const Profile = () => {
 			setName(auth.user.name || '');
 		}
 	}, [auth]);
+
+	const handleLogout = () => {
+		setAuth(null);
+		navigate('/login');
+		
+	};
 
 	// Password validation checks
 	const passwordChecks = [
@@ -491,6 +498,12 @@ const Profile = () => {
 						</div>
 					</div>
 				</div>
+				<button
+					onClick={handleLogout}
+					className="w-full mt-8 bg-red-500 text-white rounded-lg px-6 py-2.5 font-medium hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+				>
+					Logout
+				</button>
 			</div>
 		</div>
 	);
