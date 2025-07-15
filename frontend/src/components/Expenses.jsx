@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
+import Spinner from './Spinner';
 
 
 const Expenses = () => {
@@ -102,10 +103,13 @@ const Expenses = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 flex items-center justify-center px-4">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <div className="text-lg font-medium text-gray-700">Loading expenses...</div>
+                    <Spinner size={64} />
+                    <div className="mt-6 text-lg font-medium text-gray-700">
+                        Loading expenses...
+                    </div>
+                    <div className="mt-2 text-sm text-gray-500">Please wait a moment</div>
                 </div>
             </div>
         );

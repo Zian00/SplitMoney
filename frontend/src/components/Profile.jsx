@@ -14,6 +14,7 @@ import {
 	faCheck
 } from '@fortawesome/free-solid-svg-icons';
 import { toast } from 'react-toastify';
+import Spinner from './Spinner';
 
 const Profile = () => {
 	const { auth, setAuth } = useAuth();
@@ -176,6 +177,20 @@ const Profile = () => {
 			.toUpperCase()
 			.slice(0, 2);
 	};
+
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 flex items-center justify-center px-4">
+				<div className="text-center">
+					<Spinner size={64} />
+					<div className="mt-6 text-lg font-medium text-gray-700">
+						Loading profile...
+					</div>
+					<div className="mt-2 text-sm text-gray-500">Please wait a moment</div>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-6 px-4 sm:py-8 lg:py-12">

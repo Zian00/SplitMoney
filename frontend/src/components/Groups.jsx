@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 import CreateGroupModal from './CreateGroupModal';
+import Spinner from './Spinner';
 
 const Groups = () => {
 	const { auth } = useAuth();
@@ -61,11 +62,10 @@ const Groups = () => {
 		return (
 			<div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 flex items-center justify-center px-4">
 				<div className="text-center">
-					<div className="relative">
-						<div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-100 mx-auto"></div>
-						<div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-500 border-t-transparent absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+					<Spinner size={64} />
+					<div className="mt-6 text-lg font-medium text-gray-700">
+						Loading groups...
 					</div>
-					<div className="mt-6 text-lg font-medium text-gray-700">Loading groups...</div>
 					<div className="mt-2 text-sm text-gray-500">Please wait a moment</div>
 				</div>
 			</div>

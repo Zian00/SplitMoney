@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/apiClient';
 import CreateGroupModal from './CreateGroupModal';
+import Spinner from './Spinner';
 
 const Dashboard = () => {
 	const { auth } = useAuth();
 	const user = auth?.user;
 	const navigate = useNavigate();
 	const [groups, setGroups] = useState([]);
-	const [loading, setLoading] = useState(true);
+	const [groupsLoading, setGroupsLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -36,6 +37,7 @@ const Dashboard = () => {
 	}, [user]);
 
 	const fetchUserGroups = async () => {
+		setGroupsLoading(true);
 		try {
 			const response = await apiClient.get('/api/groups');
 			setGroups(response.data);
@@ -43,7 +45,7 @@ const Dashboard = () => {
 			console.error('Error fetching groups:', err);
 			setError('Failed to load groups');
 		} finally {
-			setLoading(false);
+			setGroupsLoading(false);
 		}
 	};
 
@@ -51,14 +53,11 @@ const Dashboard = () => {
 		fetchUserGroups();
 	};
 
-	if (!user || loading) {
+	if (!user || groupsLoading) {
 		return (
 			<div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 flex items-center justify-center px-4">
 				<div className="text-center">
-					<div className="relative">
-						<div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-100 mx-auto"></div>
-						<div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-500 border-t-transparent absolute top-0 left-1/2 transform -translate-x-1/2"></div>
-					</div>
+					<Spinner size={64} />
 					<div className="mt-6 text-lg font-medium text-gray-700">
 						{!user ? 'Loading user data...' : 'Loading dashboard...'}
 					</div>

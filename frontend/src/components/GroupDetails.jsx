@@ -7,17 +7,26 @@ import ConfirmationModal from './ConfirmationModal';
 import EditExpenseModal from './EditExpenseModal';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import Spinner from './Spinner'
 
 const GroupDetails = () => {
 	const { groupId } = useParams();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { auth } = useAuth();
+
 	const [group, setGroup] = useState(null);
 	const [groupLoading, setGroupLoading] = useState(true);
+
 	const [expenses, setExpenses] = useState([]);
+	const [expensesLoading, setExpensesLoading] = useState(true);
+
 	const [groupMembers, setGroupMembers] = useState([]);
-	const [loading, setLoading] = useState(true);
+	const [membersLoading, setMembersLoading] = useState(true);
+
+	const [summary, setSummary] = useState([]);
+	const [summaryLoading, setSummaryLoading] = useState(true);
+
 	const [showAddExpense, setShowAddExpense] = useState(false);
 	const [newExpense, setNewExpense] = useState({
 		description: '',
@@ -30,9 +39,8 @@ const GroupDetails = () => {
 	const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] = useState(false);
 	const [memberToRemove, setMemberToRemove] = useState(null);
 	const [isRemovingMember, setIsRemovingMember] = useState(false);
-	const [summary, setSummary] = useState([]);
-	const [summaryLoading, setSummaryLoading] = useState(true);
-	const isCreator = auth?.user?.id === group?.created_by;
+	const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
+
 	const [inviteEmail, setInviteEmail] = useState('');
 	const [inviteLoading, setInviteLoading] = useState(false);
 	const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
@@ -40,7 +48,8 @@ const GroupDetails = () => {
 	const [showSettleUpModal, setShowSettleUpModal] = useState(false);
 	const [debtToSettle, setDebtToSettle] = useState(null);
 	const [isSettlingUp, setIsSettlingUp] = useState(false);
-	const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
+
+	const isCreator = group && group.created_by === auth.user.id;
 
 	useEffect(() => {
 		fetchGroupDetails();
@@ -65,6 +74,7 @@ const GroupDetails = () => {
 	};
 
 	const fetchGroupExpenses = async () => {
+		setExpensesLoading(true);
 		try {
 			const response = await apiClient.get(`/api/groups/${groupId}/expenses`);
 			const expenses = response.data;
@@ -88,11 +98,12 @@ const GroupDetails = () => {
 			toast.error('Failed to load expenses');
 			console.error('Error fetching expenses:', err);
 		} finally {
-			setLoading(false);
+			setExpensesLoading(false);
 		}
 	};
 
 	const fetchGroupMembers = async () => {
+		setMembersLoading(true);
 		try {
 			const response = await apiClient.get(
 				`/api/groups/${groupId}/members`
@@ -100,6 +111,8 @@ const GroupDetails = () => {
 			setGroupMembers(response.data.members);
 		} catch (err) {
 			console.error('Error fetching group members:', err);
+		} finally {
+			setMembersLoading(false);
 		}
 	};
 
@@ -266,10 +279,8 @@ const GroupDetails = () => {
 		return (
 			<div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
 				<div className="text-center">
-					<div className="relative">
-						<div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
-					</div>
-					<div className="text-lg font-semibold text-gray-700">Loading group details...</div>
+					<Spinner size={64} />
+					<div className="text-lg font-semibold text-gray-700 mt-4">Loading group details...</div>
 					<div className="text-sm text-gray-500 mt-1">Please wait</div>
 				</div>
 			</div>
@@ -306,43 +317,51 @@ const GroupDetails = () => {
 
 	return (
 		<div className='min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'>
-			{/* Header Section */}
-			<div className="bg-white shadow-sm border-b">
-			<div className='container mx-auto px-4 sm:px-6 lg:px-8 py-6'>
-				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-					<div className="flex items-center gap-3">
-						<button 
-							onClick={() => navigate('/groups')}
-							className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-						>
-							<FontAwesomeIcon icon={faArrowLeft} className='mr-2' />
-						</button>
-						
-						<div>
-							<h1 className='text-2xl sm:text-3xl font-bold text-gray-900'>
-								{group.name}
-							</h1>
-							<p className='text-gray-500 text-sm mt-1'>
-								Created {new Date(group.created_at).toLocaleDateString('en-US', {
-									year: 'numeric',
-									month: 'long',
-									day: 'numeric'
-								})}
-							</p>
+			{/* Group Info/Header */}
+			{groupLoading ? (
+				<div className="flex justify-center items-center py-12"><Spinner /></div>
+			) : group ? (
+				<div className="bg-white shadow-sm border-b">
+					<div className='container mx-auto px-4 sm:px-6 lg:px-8 py-6'>
+						<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+							<div className="flex items-center gap-3">
+								<button 
+									onClick={() => navigate('/groups')}
+									className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+								>
+									<FontAwesomeIcon icon={faArrowLeft} className='mr-2' />
+								</button>
+								
+								<div>
+									<h1 className='text-2xl sm:text-3xl font-bold text-gray-900'>
+										{group.name}
+									</h1>
+									<p className='text-gray-500 text-sm mt-1'>
+										Created {new Date(group.created_at).toLocaleDateString('en-US', {
+											year: 'numeric',
+											month: 'long',
+											day: 'numeric'
+										})}
+									</p>
+								</div>
+							</div>
+							<button
+								onClick={() => setShowAddExpense(true)}
+								className='bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium flex items-center gap-2 self-start sm:self-auto'
+							>
+								<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+								</svg>
+								Add Expense
+							</button>
 						</div>
 					</div>
-					<button
-						onClick={() => setShowAddExpense(true)}
-						className='bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium flex items-center gap-2 self-start sm:self-auto'
-					>
-						<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-						</svg>
-						Add Expense
-					</button>
 				</div>
-			</div>
-			</div>
+			) : (
+				<div className="flex justify-center items-center py-12">
+					<div className="text-red-500">Group not found.</div>
+				</div>
+			)}
 
 			<div className='container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8'>
 				<div className='grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8'>
@@ -360,7 +379,9 @@ const GroupDetails = () => {
 
 							<div className='divide-y divide-gray-100 max-h-[600px] overflow-y-auto'>
 
-							{sortedExpenses.length > 0 ? sortedExpenses.map((expense) => {
+							{expensesLoading ? (
+								<div className="flex justify-center items-center py-12"><Spinner /></div>
+							) : sortedExpenses.length > 0 ? sortedExpenses.map((expense) => {
 								const userPaid = expense.payers
 									.filter(p => Number(p.user_id) === auth.user.id)
 									.reduce((sum, p) => sum + Number(p.paid_amount), 0);
@@ -532,22 +553,26 @@ const GroupDetails = () => {
 						{/* Quick Stats */}
 						<div className='bg-white rounded-2xl shadow-sm border border-gray-100 p-6'>
 							<h2 className='text-lg font-semibold text-gray-900 mb-4'>Quick Stats</h2>
-							<div className='grid grid-cols-2 gap-4'>
-								<div className="text-center p-4 bg-blue-50 rounded-xl">
-									<div className="text-2xl font-bold text-blue-600">
-										{expenses.filter(e => e.type !== 'settlement').length}
+							{expensesLoading ? (
+								<div className="flex justify-center items-center py-4"><Spinner /></div>
+							) : (
+								<div className='grid grid-cols-2 gap-4'>
+									<div className="text-center p-4 bg-blue-50 rounded-xl">
+										<div className="text-2xl font-bold text-blue-600">
+											{expenses.filter(e => e.type !== 'settlement').length}
+										</div>
+										<div className="text-sm text-blue-700">
+											{expenses.filter(e => e.type !== 'settlement').length === 1 ? 'Expense' : 'Expenses'}
+										</div>
 									</div>
-									<div className="text-sm text-blue-700">
-										{expenses.filter(e => e.type !== 'settlement').length === 1 ? 'Expense' : 'Expenses'}
+									<div className="text-center p-4 bg-purple-50 rounded-xl">
+										<div className="text-2xl font-bold text-purple-600">
+											${expenses.filter(e => e.type !== 'settlement').reduce((sum, expense) => sum + expense.total_amount, 0).toFixed(2)}
+										</div>
+										<div className="text-sm text-purple-700">Total</div>
 									</div>
 								</div>
-								<div className="text-center p-4 bg-purple-50 rounded-xl">
-									<div className="text-2xl font-bold text-purple-600">
-										${expenses.filter(e => e.type !== 'settlement').reduce((sum, expense) => sum + expense.total_amount, 0).toFixed(2)}
-									</div>
-									<div className="text-sm text-purple-700">Total</div>
-								</div>
-							</div>
+							)}
 						</div>
 
 						{/* Summary Card */}
@@ -560,7 +585,7 @@ const GroupDetails = () => {
 							</h2>
 							{summaryLoading ? (
 								<div className="flex items-center justify-center py-8">
-									<div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+									<Spinner size={32} />
 									<span className="ml-3 text-gray-600">Calculating...</span>
 								</div>
 							) : summary.length > 0 ? (
@@ -625,76 +650,82 @@ const GroupDetails = () => {
 								Members ({groupMembers.length})
 							</h2>
 
-							{isCreator && (
-								<form onSubmit={handleSendInvite} className='mb-6 space-y-3'>
-									<div className="flex gap-2">
-										<input
-											type='email'
-											value={inviteEmail}
-											onChange={e => setInviteEmail(e.target.value)}
-											placeholder="Enter email to invite"
-											className='flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
-											required
-											disabled={inviteLoading}
-										/>
-										<button
-											type='submit'
-											className='bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm flex-shrink-0'
-											disabled={inviteLoading || !inviteEmail}
-										>
-											{inviteLoading ? (
-												<svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-													<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-													<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-												</svg>
-											) : (
-												'Invite'
-											)}
-										</button>
-									</div>
-								</form>
-							)}
-
-							<div className='space-y-2'>
-								{groupMembers.map((member) => (
-									<div key={member.id} className='flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors'>
-										<div className="flex items-center gap-3">
-											<div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
-												{member.name.charAt(0).toUpperCase()}
+							{membersLoading ? (
+								<div className="flex justify-center items-center py-8"><Spinner /></div>
+							) : (
+								<>
+									{isCreator && (
+										<form onSubmit={handleSendInvite} className='mb-6 space-y-3'>
+											<div className="flex gap-2">
+												<input
+													type='email'
+													value={inviteEmail}
+													onChange={e => setInviteEmail(e.target.value)}
+													placeholder="Enter email to invite"
+													className='flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+													required
+													disabled={inviteLoading}
+												/>
+												<button
+													type='submit'
+													className='bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm flex-shrink-0'
+													disabled={inviteLoading || !inviteEmail}
+												>
+													{inviteLoading ? (
+														<svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+															<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+															<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+														</svg>
+													) : (
+														'Invite'
+													)}
+												</button>
 											</div>
-											<div>
-												<div className='font-medium text-gray-900 flex items-center gap-2'>
-													{member.name}
-													{member.id === auth.user.id && (
-														<span className='text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full'>
-															You
+										</form>
+									)}
+
+									<div className='space-y-2'>
+										{groupMembers.map((member) => (
+											<div key={member.id} className='flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors'>
+												<div className="flex items-center gap-3">
+													<div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
+														{member.name.charAt(0).toUpperCase()}
+													</div>
+													<div>
+														<div className='font-medium text-gray-900 flex items-center gap-2'>
+															{member.name}
+															{member.id === auth.user.id && (
+																<span className='text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full'>
+																	You
+																</span>
+															)}
+														</div>
+														<div className='text-xs text-gray-500'>{member.email}</div>
+													</div>
+												</div>
+												<div className='flex items-center gap-2'>
+													{member.id === group.created_by && (
+														<span className='text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full'>
+															Creator
 														</span>
 													)}
+													{isCreator && member.id !== auth.user.id && (
+														<button
+															onClick={() => handleRemoveMember(member)}
+															className='text-red-500 hover:text-red-700 text-xs p-1 rounded hover:bg-red-50 transition-colors'
+															title='Remove member'
+														>
+															<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+															</svg>
+														</button>
+													)}
 												</div>
-												<div className='text-xs text-gray-500'>{member.email}</div>
 											</div>
-										</div>
-										<div className='flex items-center gap-2'>
-											{member.id === group.created_by && (
-												<span className='text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full'>
-													Creator
-												</span>
-											)}
-											{isCreator && member.id !== auth.user.id && (
-												<button
-													onClick={() => handleRemoveMember(member)}
-													className='text-red-500 hover:text-red-700 text-xs p-1 rounded hover:bg-red-50 transition-colors'
-													title='Remove member'
-												>
-													<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-													</svg>
-												</button>
-											)}
-										</div>
+										))}
 									</div>
-								))}
-							</div>
+								</>
+							)}
 						</div>
 
 						{/* Admin Actions for Creator */}
