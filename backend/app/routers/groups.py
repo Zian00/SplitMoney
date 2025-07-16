@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks
-from sqlmodel import Session, select, delete
+from sqlmodel import Session, select, delete, func
 from typing import List
 from app.database import get_session
 from app.deps import get_current_user
@@ -51,6 +51,50 @@ async def create_group(group_data: dict, session: Session = Depends(get_session)
     session.commit()
 
     return group
+
+@router.get("/groups/summary")
+async def get_groups_summary(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    # Get all groups for the user
+    statement = select(Group).join(Membership).where(Membership.user_id == current_user.id)
+    groups = session.exec(statement).all()
+
+    # For all group IDs, get member and expense counts in bulk
+    group_ids = [g.id for g in groups]
+    if not group_ids:
+        return []
+
+    # Member counts
+    member_counts = dict(
+        session.exec(
+            select(Membership.group_id, func.count(Membership.user_id))
+            .where(Membership.group_id.in_(group_ids))
+            .group_by(Membership.group_id)
+        ).all()
+    )
+    # Expense counts
+    expense_counts = dict(
+        session.exec(
+            select(Expense.group_id, func.count(Expense.id))
+            .where(Expense.group_id.in_(group_ids))
+            .group_by(Expense.group_id)
+        ).all()
+    )
+
+    # Compose result
+    result = []
+    for g in groups:
+        result.append({
+            # "id": g.id,
+            "name": g.name,
+            # "created_by": g.created_by,
+            "created_at": g.created_at,
+            "member_count": member_counts.get(g.id, 0),
+            "expense_count": expense_counts.get(g.id, 0),
+        })
+    return result
 
 # Get a specific group
 @router.get("/groups/{group_id}", response_model=Group)
@@ -429,3 +473,4 @@ async def settle_up(
     session.commit()
     session.refresh(expense)
     return {"message": "Settlement recorded", "expense_id": expense.id}
+

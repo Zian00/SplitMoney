@@ -20,27 +20,10 @@ const Groups = () => {
 	}, []);
 
 	const fetchGroups = async () => {
+		setLoading(true);
 		try {
-			const response = await apiClient.get('/api/groups');
-			setGroups(response.data);
-
-			// Fetch stats for each group in parallel
-			const stats = {};
-			await Promise.all(response.data.map(async (group) => {
-				try {
-					const [membersRes, expensesRes] = await Promise.all([
-						apiClient.get(`/api/groups/${group.id}/members`),
-						apiClient.get(`/api/groups/${group.id}/expenses`)
-					]);
-					stats[group.id] = {
-						members: membersRes.data.members.length,
-						expenses: expensesRes.data.length
-					};
-				} catch {
-					stats[group.id] = { members: 1, expenses: 0 }; // fallback
-				}
-			}));
-			setGroupStats(stats);
+			const response = await apiClient.get('/api/groups/summary');
+			setGroups(response.data); // Each group now has member_count and expense_count
 		} catch (err) {
 			toast.error('Failed to load groups');
 			console.error('Error fetching groups:', err);
@@ -217,7 +200,7 @@ const Groups = () => {
 											<span className='text-sm font-medium text-gray-600'>Members</span>
 										</div>
 										<span className='text-sm font-bold text-gray-800'>
-											{groupStats[group.id]?.members ?? <span className="text-gray-400">...</span>}
+											{group.member_count}
 										</span>
 									</div>
 									<div className='flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg'>
@@ -228,7 +211,7 @@ const Groups = () => {
 											<span className='text-sm font-medium text-gray-600'>Expenses</span>
 										</div>
 										<span className='text-sm font-bold text-gray-800'>
-											{groupStats[group.id]?.expenses ?? <span className="text-gray-400">...</span>}
+											{group.expense_count}
 										</span>
 									</div>
 								</div>
