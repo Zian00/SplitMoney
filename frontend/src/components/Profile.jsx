@@ -276,6 +276,7 @@ const Profile = () => {
 												className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 text-sm sm:text-base hover:border-gray-300"
 												placeholder="Enter your display name"
 												autoFocus
+												autoComplete="off"
 											/>
 										</div>
 										
