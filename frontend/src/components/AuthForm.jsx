@@ -237,6 +237,7 @@ const AuthForm = ({ mode = "login" }) => {
 									disabled={isLoading}
 									className="w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
 									placeholder="Enter your password"
+									autoComplete={modeState === 'register' ? "new-password" : "current-password"}
 								/>
 								<button
 									type="button"

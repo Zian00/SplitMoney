@@ -358,6 +358,7 @@ const Profile = () => {
 														placeholder="Enter current password"
 														required
 														disabled={isChangingPassword}
+														autoComplete="current-password"
 													/>
 													<button
 														type="button"
@@ -391,6 +392,7 @@ const Profile = () => {
 														placeholder="Enter new password"
 														required
 														disabled={isChangingPassword}
+														autoComplete="new-password"
 													/>
 													<button
 														type="button"
@@ -444,6 +446,7 @@ const Profile = () => {
 														placeholder="Confirm new password"
 														required
 														disabled={isChangingPassword}
+														autoComplete="new-password"
 													/>
 													<button
 														type="button"
