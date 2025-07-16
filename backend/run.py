@@ -1,10 +1,12 @@
 import uvicorn
-# from app.main import app
+from app.main import app
+import os
 
 if __name__ == "__main__":
+    is_dev = os.getenv("ENVIRONMENT", "development") == "development"
     uvicorn.run(
-        "app.main:app",   # Pass as import string for reload to work!
+        "app.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True       # Enables auto-reload on code changes
+        reload=is_dev
     )
