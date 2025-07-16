@@ -87,7 +87,7 @@ async def get_groups_summary(
     result = []
     for g in groups:
         result.append({
-            # "id": g.id,
+            "id": g.id,
             "name": g.name,
             # "created_by": g.created_by,
             "created_at": g.created_at,
