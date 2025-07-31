@@ -180,7 +180,7 @@ const ExpenseDetail = () => {
 		try {
 			await apiClient.delete(`/api/expenses/${expense.expense.id}`);
 			setShowDeleteConfirm(false);
-			navigate('/expenses');
+			navigate(getBackPath());
 			toast.success('Expense deleted successfully');
 		} catch (err) {
 			toast.error('Failed to delete expense');

@@ -370,7 +370,7 @@ const Expenses = () => {
                                             <h3 className="font-semibold text-gray-900 text-base sm:text-lg truncate group-hover:text-blue-600 transition-colors">
                                                 {expense.description || 'No description'}
                                             </h3>
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit">
+                                            <span className="items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit truncate max-w-[120px] overflow-hidden">
                                                 {getGroupName(expense.group_id)}
                                             </span>
                                         </div>
